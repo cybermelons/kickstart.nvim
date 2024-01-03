@@ -79,14 +79,24 @@ require('lazy').setup({
 
   -- Works in conjunction with LSP for faster formatting
   {
-    'stevearc/conform.nvim', opts = {},
+    'stevearc/conform.nvim',
+    opts = {
+      formatters_by_ft = {
+        lua = { 'stylua', 'trim_whitespace' },
+        -- Use the "*" filetype to run formatters on all filetypes.
+        ['*'] = { 'codespell' },
+        -- Use the "_" filetype to run formatters on filetypes that don't
+        -- have other formatters configured.
+        ['_'] = { 'trim_whitespace' },
+      },
+    },
   },
 
   {
-    "nvim-telescope/telescope-file-browser.nvim",
-    dependencies = { "nvim-telescope/telescope.nvim", "nvim-lua/plenary.nvim" },
+    'nvim-telescope/telescope-file-browser.nvim',
+    dependencies = { 'nvim-telescope/telescope.nvim', 'nvim-lua/plenary.nvim' },
     config = function()
-      require("telescope").load_extension "file_browser"
+      require('telescope').load_extension 'file_browser'
     end,
   },
 
@@ -126,16 +136,16 @@ require('lazy').setup({
             {
               desc = ' dotfiles',
               group = 'Number',
-              action = 'Telescope file_browser path=' .. vim.fn.stdpath('config'),
+              action = 'Telescope file_browser path=' .. vim.fn.stdpath 'config',
               key = 'd',
             },
           },
         },
       }
 
-      vim.keymap.set('n', "<leader>H", '<cmd>Dashboard<cr>', { desc = '[H]ome' }) --
+      vim.keymap.set('n', '<leader>H', '<cmd>Dashboard<cr>', { desc = '[H]ome' }) --
     end,
-    dependencies = { { 'nvim-tree/nvim-web-devicons' } }
+    dependencies = { { 'nvim-tree/nvim-web-devicons' } },
   },
 
   {
@@ -213,6 +223,32 @@ require('lazy').setup({
     },
   },
 
+  -- Adds a lazygit wrapper
+  {
+    'kdheepak/lazygit.nvim',
+    -- optional for floating window border decoration
+    dependencies = {
+      'nvim-lua/plenary.nvim',
+    },
+    keys = {
+      { '<leader>lg', '<cmd>LazyGitCurrentFile<cr>', desc = '[L]azy[g]it' }, --
+    },
+  },
+
+  {
+    'nvim-neo-tree/neo-tree.nvim',
+    opts = {},
+    dependencies = {
+      'nvim-lua/plenary.nvim',
+      'nvim-tree/nvim-web-devicons', -- not strictly required, but recommended
+      'MunifTanjim/nui.nvim',
+      -- "3rd/image.nvim", -- Optional image support in preview window: See `# Preview Mode` for more information
+    },
+    keys = {
+      { '<C-n>', '<cmd>Neotree toggle<cr>', desc = 'NeoTree' },
+    },
+  },
+
   {
     -- Theme inspired by Atom
     'navarasu/onedark.nvim',
@@ -267,6 +303,11 @@ require('lazy').setup({
   },
 
   {
+    'nvim-telescope/telescope-ui-select.nvim',
+    dependencies = { 'nvim-telescope/telescope.nvim' },
+  },
+
+  {
     -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
     dependencies = {
@@ -286,14 +327,14 @@ require('lazy').setup({
   },
 
   {
-    "kylechui/nvim-surround",
-    version = "*", -- Use for stability; omit to use `main` branch for the latest features
-    event = "VeryLazy",
+    'kylechui/nvim-surround',
+    version = '*', -- Use for stability; omit to use `main` branch for the latest features
+    event = 'VeryLazy',
     config = function()
-      require("nvim-surround").setup({
+      require('nvim-surround').setup {
         -- Configuration here, or leave empty to use defaults
-      })
-    end
+      }
+    end,
   },
 
   {
@@ -303,7 +344,6 @@ require('lazy').setup({
     },
     lazy = false,
   },
-
 
   --{
   --  "Pocco81/auto-save.nvim",
@@ -317,22 +357,27 @@ require('lazy').setup({
   --},
 
   {
-    "nvim-neorg/neorg",
-    build = ":Neorg sync-parsers",
-    dependencies = { "nvim-lua/plenary.nvim" },
+    'nvim-neorg/neorg',
+    build = ':Neorg sync-parsers',
+    dependencies = { 'nvim-lua/plenary.nvim' },
     config = function()
-      require("neorg").setup {
+      require('neorg').setup {
         load = {
-          ["core.defaults"] = {},  -- Loads default behaviour
-          ["core.concealer"] = {}, -- Adds pretty icons to your documents
-          ["core.dirman"] = {      -- Manages Neorg workspaces
+          ['core.defaults'] = {}, -- Loads default behaviour
+          ['core.concealer'] = {}, -- Adds pretty icons to your documents
+          ['core.dirman'] = { -- Manages Neorg workspaces
             config = {
               workspaces = {
-                notes = "~/notes",
+                notes = '~/notes',
               },
-              default_workspace = "notes",
+              default_workspace = 'notes',
             },
           },
+          -- ["core.keybinds"] = {
+          --   config = {
+          --     default_keybinds = false,
+          --   }
+          -- }
         },
       }
     end,
@@ -340,23 +385,21 @@ require('lazy').setup({
 
   {
     'cybermelons/bookmarks.nvim',
-    after = "telescope.nvim",
+    after = 'telescope.nvim',
     config = function()
       require('bookmarks').setup()
-      require('telescope').load_extension('bookmarks')
+      require('telescope').load_extension 'bookmarks'
       -- Extra Keymaps
-      local bm = require('bookmarks')
-      vim.keymap.set('n', "<leader>mm", bm.bookmark_toggle, { desc = 'Toggle book[m]ark' })                     -- add or remove bookmark at current line
-      vim.keymap.set('n', "<leader>me", bm.bookmark_ann, { desc = '[E]dit mark annotation at current line' })   --
-      vim.keymap.set('n', "<leader>mc", bm.bookmark_clean, { desc = '[C]lean all marks in local buffer' })      --
-      vim.keymap.set('n', "<leader>mn", bm.bookmark_next, { desc = 'Jump to [n]ext mark in local buffer' })     --
-      vim.keymap.set('n', "<leader>mp", bm.bookmark_prev, { desc = 'Jump to [p]revious mark in local buffer' }) --
-      vim.keymap.set('n', "<leader>ml", bm.bookmark_list, { desc = 'Show marked file [l]ist' })                 --
-      vim.keymap.set('n', '<leader>b', require('telescope').extensions.bookmarks.list,
-        { desc = '[B]ookmarks', buffer = true })
+      local bm = require 'bookmarks'
+      vim.keymap.set('n', '<leader>mm', bm.bookmark_toggle, { desc = 'Toggle book[m]ark' }) -- add or remove bookmark at current line
+      vim.keymap.set('n', '<leader>me', bm.bookmark_ann, { desc = '[E]dit mark annotation at current line' }) --
+      vim.keymap.set('n', '<leader>mc', bm.bookmark_clean, { desc = '[C]lean all marks in local buffer' }) --
+      vim.keymap.set('n', '<leader>mn', bm.bookmark_next, { desc = 'Jump to [n]ext mark in local buffer' }) --
+      vim.keymap.set('n', '<leader>mp', bm.bookmark_prev, { desc = 'Jump to [p]revious mark in local buffer' }) --
+      vim.keymap.set('n', '<leader>ml', bm.bookmark_list, { desc = 'Show marked file [l]ist' }) --
+      vim.keymap.set('n', '<leader>b', require('telescope').extensions.bookmarks.list, { desc = '[B]ookmarks' })
     end,
   },
-
 
   -- End lazy plugin list
 
@@ -373,10 +416,11 @@ require('lazy').setup({
   --
   --    For additional information see: https://github.com/folke/lazy.nvim#-structuring-your-plugins
   -- { import = 'custom.plugins' },
-  { 'nvim-telescope/telescope-fzf-native.nvim', build = 'cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release && cmake --install build --prefix build' }
-
+  {
+    'nvim-telescope/telescope-fzf-native.nvim',
+    build = 'cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release && cmake --install build --prefix build',
+  },
 }, {})
-
 
 -- [[ Setting options ]]
 -- See `:help vim.o`
@@ -535,12 +579,11 @@ vim.keymap.set('n', '<leader>sG', ':LiveGrepGitRoot<cr>', { desc = '[S]earch by 
 vim.keymap.set('n', '<leader>sd', require('telescope.builtin').diagnostics, { desc = '[S]earch [D]iagnostics' })
 vim.keymap.set('n', '<leader>sr', require('telescope.builtin').resume, { desc = '[S]earch [R]esume' })
 
-
 -- [[ Configure Treesitter ]]
 -- See `:help nvim-treesitter`
 -- Defer Treesitter setup after first render to improve startup time of 'nvim {filename}'
 vim.defer_fn(function()
-  require("nvim-treesitter.install").prefer_git = true
+  require('nvim-treesitter.install').prefer_git = true
   require('nvim-treesitter.configs').setup {
     -- Add languages to be installed here that you want installed for treesitter
     ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash' },
@@ -636,7 +679,6 @@ local on_attach = function(_, bufnr)
   nmap('<leader>ds', require('telescope.builtin').lsp_document_symbols, '[D]ocument [S]ymbols')
   nmap('<leader>ws', require('telescope.builtin').lsp_dynamic_workspace_symbols, '[W]orkspace [S]ymbols')
 
-
   -- See `:help K` for why this keymap
   nmap('K', vim.lsp.buf.hover, 'Hover Documentation')
   nmap('<C-k>', vim.lsp.buf.signature_help, 'Signature Documentation')
@@ -651,7 +693,11 @@ local on_attach = function(_, bufnr)
 
   -- Create a command `:Format` local to the LSP buffer
   vim.api.nvim_buf_create_user_command(bufnr, 'Format', function(_)
-    vim.lsp.buf.format()
+    -- vim.lsp.buf.format()
+    require('conform').format {
+      async = true,
+      lsp_fallback = true,
+    }
   end, { desc = 'Format current buffer with LSP' })
 end
 
@@ -668,7 +714,7 @@ require('which-key').register {
 
   -- register new keybinds
   -- Neorg
-  ['<leader>n'] = { "<cmd>Neorg journal today<cr>", "[N]otes" },
+  ['<leader>n'] = { '<cmd>Neorg journal today<cr>', '[N]otes' },
 }
 -- register which-key VISUAL mode
 -- required for visual <leader>hs (hunk stage) to work
@@ -677,10 +723,10 @@ require('which-key').register({
   ['<leader>h'] = { 'Git [H]unk' },
 }, { mode = 'v' })
 
-require('which-key').register({
+require('which-key').register {
   ['<leader>'] = { name = 'VISUAL <leader>' },
   ['<leader>h'] = { 'Git [H]unk' },
-})
+}
 
 -- mason-lspconfig requires that these setup functions are called in this order
 -- before setting up the servers.
@@ -708,7 +754,7 @@ local servers = {
       workspace = { checkThirdParty = false },
       telemetry = { enable = false },
       -- NOTE: toggle below to ignore Lua_LS's noisy `missing-fields` warnings
-      -- diagnostics = { disable = { 'missing-fields' } },
+      diagnostics = { disable = { 'missing-fields' } },
     },
   },
 }
@@ -789,8 +835,6 @@ cmp.setup {
     { name = 'path' },
   },
 }
-
-
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
