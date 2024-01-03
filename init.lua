@@ -359,10 +359,26 @@ require('lazy').setup({
       },
     },
   },
+  {
+    'ziontee113/icon-picker.nvim',
+    config = function()
+      require('icon-picker').setup { disable_legacy_commands = true }
 
+      local opts = { noremap = true, silent = true }
+
+      vim.keymap.set('n', '<Leader><Leader>i', '<cmd>IconPickerNormal<cr>', opts)
+      vim.keymap.set('n', '<Leader><Leader>y', '<cmd>IconPickerYank<cr>', opts) --> Yank the selected icon into register
+      vim.keymap.set('i', '<C-i>', '<cmd>IconPickerInsert<cr>', opts)
+    end,
+  },
+  {
+    'windwp/nvim-autopairs',
+    event = 'InsertEnter',
+    opts = {}, -- this is equalent to setup({}) function
+  },
   {
     -- Theme inspired by Atom
-    'navarasu/onedark.nvim',
+    'olimorris/onedarkpro.nvim',
     priority = 1000,
     config = function()
       vim.cmd.colorscheme 'onedark'
@@ -412,6 +428,9 @@ require('lazy').setup({
       },
     },
     opts = {
+      defaults = {
+        prompt_prefix = '   ',
+      },
       extensions = {
         persisted = {
           layout_config = { width = 0.55, height = 0.55 },
@@ -439,6 +458,7 @@ require('lazy').setup({
     dependencies = {
       'tpope/vim-repeat',
     },
+    priority = 51, -- set to 51 for the 'S' mapping to work
     config = function()
       require('leap').create_default_mappings()
     end,
