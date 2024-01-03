@@ -1,44 +1,3 @@
---[[
-
-=====================================================================
-==================== READ THIS BEFORE CONTINUING ====================
-=====================================================================
-
-Kickstart.nvim is *not* a distribution.
-
-Kickstart.nvim is a template for your own configuration.
-  The goal is that you can read every line of code, top-to-bottom, understand
-  what your configuration is doing, and modify it to suit your needs.
-
-  Once you've done that, you should start exploring, configuring and tinkering to
-  explore Neovim!
-
-  If you don't know anything about Lua, I recommend taking some time to read through
-  a guide. One possible example:
-  - https://learnxinyminutes.com/docs/lua/
-
-
-  And then you can explore or search through `:help lua-guide`
-  - https://neovim.io/doc/user/lua-guide.html
-
-
-Kickstart Guide:
-
-I have left several `:help X` comments throughout the init.lua
-You should run that command and read that help section for more information.
-
-In addition, I have some `NOTE:` items throughout the file.
-These are for you, the reader to help understand what is happening. Feel free to delete
-them once you know what you're doing, but they should serve as a guide for when you
-are first encountering a few different constructs in your nvim config.
-
-I hope you enjoy your Neovim journey,
-- TJ
-
-P.S. You can delete this when you're done too. It's your config now :)
---]]
-
--- Set <space> as the leader key
 -- See `:help mapleader`
 --  NOTE: Must happen before plugins are required (otherwise wrong leader will be used)
 vim.g.mapleader = ' '
@@ -112,7 +71,72 @@ require('lazy').setup({
   },
 
   -- Useful plugin to show you pending keybinds.
-  { 'folke/which-key.nvim', opts = {} },
+  {
+    'folke/which-key.nvim',
+    opts = {},
+  },
+
+  -- Works in conjunction with LSP for faster formatting
+  {
+    'stevearc/conform.nvim', opts = {},
+  },
+
+  {
+    "nvim-telescope/telescope-file-browser.nvim",
+    dependencies = { "nvim-telescope/telescope.nvim", "nvim-lua/plenary.nvim" },
+    config = function()
+      require("telescope").load_extension "file_browser"
+    end,
+  },
+
+  {
+    'nvimdev/dashboard-nvim',
+    event = 'VimEnter',
+    config = function()
+      require('dashboard').setup {
+        config = {
+          week_header = {
+            enable = true,
+          },
+          project = { enable = true, limit = 5 },
+          mru = { limit = 5 },
+          shortcut = {
+            { desc = '󰊳 Update', group = '@property', action = 'Lazy update', key = 'u' },
+            {
+              icon = ' ',
+              icon_hl = '@variable',
+              desc = 'Files',
+              group = 'Label',
+              action = 'Telescope find_files',
+              key = 'f',
+            },
+            {
+              desc = '📚 Notes',
+              group = 'DiagnosticHint',
+              action = 'Neorg journal today',
+              key = 'n',
+            },
+            {
+              desc = ' Apps',
+              group = 'DiagnosticHint',
+              action = 'Telescope app',
+              key = 'a',
+            },
+            {
+              desc = ' dotfiles',
+              group = 'Number',
+              action = 'Telescope file_browser path=' .. vim.fn.stdpath('config'),
+              key = 'd',
+            },
+          },
+        },
+      }
+
+      vim.keymap.set('n', "<leader>H", '<cmd>Dashboard<cr>', { desc = '[H]ome' }) --
+    end,
+    dependencies = { { 'nvim-tree/nvim-web-devicons' } }
+  },
+
   {
     -- Adds git related signs to the gutter, as well as utilities for managing changes
     'lewis6991/gitsigns.nvim',
@@ -220,9 +244,6 @@ require('lazy').setup({
     opts = {},
   },
 
-  -- "gc" to comment visual regions/lines
-  { 'numToStr/Comment.nvim', opts = {} },
-
   -- Fuzzy Finder (files, lsp, etc)
   {
     'nvim-telescope/telescope.nvim',
@@ -253,6 +274,91 @@ require('lazy').setup({
     build = ':TSUpdate',
   },
 
+  {
+    'ggandor/leap.nvim',
+    dependencies = {
+      'tpope/vim-repeat',
+    },
+    config = function()
+      require('leap').create_default_mappings()
+    end,
+  },
+
+  {
+    "kylechui/nvim-surround",
+    version = "*", -- Use for stability; omit to use `main` branch for the latest features
+    event = "VeryLazy",
+    config = function()
+      require("nvim-surround").setup({
+        -- Configuration here, or leave empty to use defaults
+      })
+    end
+  },
+
+  {
+    'numToStr/Comment.nvim',
+    opts = {
+      -- add any options here
+    },
+    lazy = false,
+  },
+
+
+  --{
+  --  "Pocco81/auto-save.nvim",
+  --  config = function()
+  --    require("auto-save").setup {
+  --      -- your config goes here
+  --      -- or just leave it empty :)
+  --    }
+  --vim.keymap.set('n', '<leader>ta', '<cmd>ASToggle<CR>', { desc = 'toggle autosave', buffer = true })
+  --  end,
+  --},
+
+  {
+    "nvim-neorg/neorg",
+    build = ":Neorg sync-parsers",
+    dependencies = { "nvim-lua/plenary.nvim" },
+    config = function()
+      require("neorg").setup {
+        load = {
+          ["core.defaults"] = {},  -- Loads default behaviour
+          ["core.concealer"] = {}, -- Adds pretty icons to your documents
+          ["core.dirman"] = {      -- Manages Neorg workspaces
+            config = {
+              workspaces = {
+                notes = "~/notes",
+              },
+              default_workspace = "notes",
+            },
+          },
+        },
+      }
+    end,
+  },
+
+  {
+    'cybermelons/bookmarks.nvim',
+    after = "telescope.nvim",
+    config = function()
+      require('bookmarks').setup()
+      require('telescope').load_extension('bookmarks')
+      -- Extra Keymaps
+      local bm = require('bookmarks')
+      vim.keymap.set('n', "<leader>mm", bm.bookmark_toggle, { desc = 'Toggle book[m]ark' })                     -- add or remove bookmark at current line
+      vim.keymap.set('n', "<leader>me", bm.bookmark_ann, { desc = '[E]dit mark annotation at current line' })   --
+      vim.keymap.set('n', "<leader>mc", bm.bookmark_clean, { desc = '[C]lean all marks in local buffer' })      --
+      vim.keymap.set('n', "<leader>mn", bm.bookmark_next, { desc = 'Jump to [n]ext mark in local buffer' })     --
+      vim.keymap.set('n', "<leader>mp", bm.bookmark_prev, { desc = 'Jump to [p]revious mark in local buffer' }) --
+      vim.keymap.set('n', "<leader>ml", bm.bookmark_list, { desc = 'Show marked file [l]ist' })                 --
+      vim.keymap.set('n', '<leader>b', require('telescope').extensions.bookmarks.list,
+        { desc = '[B]ookmarks', buffer = true })
+    end,
+  },
+
+
+  -- End lazy plugin list
+
   -- NOTE: Next Step on Your Neovim Journey: Add/Configure additional "plugins" for kickstart
   --       These are some example plugins that I've included in the kickstart repository.
   --       Uncomment any of the lines below to enable them.
@@ -266,7 +372,10 @@ require('lazy').setup({
   --
   --    For additional information see: https://github.com/folke/lazy.nvim#-structuring-your-plugins
   -- { import = 'custom.plugins' },
+  { 'nvim-telescope/telescope-fzf-native.nvim', build = 'cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release && cmake --install build --prefix build' }
+
 }, {})
+
 
 -- [[ Setting options ]]
 -- See `:help vim.o`
@@ -320,15 +429,24 @@ vim.keymap.set('n', 'k', "v:count == 0 ? 'gk' : 'k'", { expr = true, silent = tr
 vim.keymap.set('n', 'j', "v:count == 0 ? 'gj' : 'j'", { expr = true, silent = true })
 
 -- Diagnostic keymaps
-vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = 'Go to previous diagnostic message' })
-vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = 'Go to next diagnostic message' })
+vim.keymap.set('n', '[n', vim.diagnostic.goto_prev, { desc = 'Go to previous diagnostic message' })
+vim.keymap.set('n', ']n', vim.diagnostic.goto_next, { desc = 'Go to next diagnostic message' })
 vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Open floating diagnostic message' })
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostics list' })
+
+-- Autoformat with space-f
+vim.keymap.set('n', '<leader>f', '<cmd>Format<cr>', { desc = '[F]ormat code' })
+
+-- Comment with Ctrl-/
+vim.keymap.set('n', '<C-/>', '<Plug>(comment_toggle_linewise_current)', { desc = '[Ctrl-/] Comment toggle linewise' })
+vim.keymap.set('x', '<C-/>', '<Plug>(comment_toggle_linewise_visual)', { desc = '[Ctrl-/] Comment toggle linewise' })
+vim.keymap.set('n', ';', ':', { desc = ':Command mode' })
 
 -- [[ Highlight on yank ]]
 -- See `:help vim.highlight.on_yank()`
 local highlight_group = vim.api.nvim_create_augroup('YankHighlight', { clear = true })
 vim.api.nvim_create_autocmd('TextYankPost', {
+
   callback = function()
     vim.highlight.on_yank()
   end,
@@ -390,7 +508,7 @@ vim.api.nvim_create_user_command('LiveGrepGitRoot', live_grep_git_root, {})
 
 -- See `:help telescope.builtin`
 vim.keymap.set('n', '<leader>?', require('telescope.builtin').oldfiles, { desc = '[?] Find recently opened files' })
-vim.keymap.set('n', '<leader><space>', require('telescope.builtin').buffers, { desc = '[ ] Find existing buffers' })
+vim.keymap.set('n', '<leader><space>', require('telescope.builtin').builtin, { desc = '[ ] Select pickers' })
 vim.keymap.set('n', '<leader>/', function()
   -- You can pass additional configuration to telescope to change theme, layout, etc.
   require('telescope.builtin').current_buffer_fuzzy_find(require('telescope.themes').get_dropdown {
@@ -406,9 +524,9 @@ local function telescope_live_grep_open_files()
   }
 end
 vim.keymap.set('n', '<leader>s/', telescope_live_grep_open_files, { desc = '[S]earch [/] in Open Files' })
-vim.keymap.set('n', '<leader>ss', require('telescope.builtin').builtin, { desc = '[S]earch [S]elect Telescope' })
 vim.keymap.set('n', '<leader>gf', require('telescope.builtin').git_files, { desc = 'Search [G]it [F]iles' })
 vim.keymap.set('n', '<leader>sf', require('telescope.builtin').find_files, { desc = '[S]earch [F]iles' })
+vim.keymap.set('n', '<C-P>', require('telescope.builtin').find_files, { desc = 'Search Files' })
 vim.keymap.set('n', '<leader>sh', require('telescope.builtin').help_tags, { desc = '[S]earch [H]elp' })
 vim.keymap.set('n', '<leader>sw', require('telescope.builtin').grep_string, { desc = '[S]earch current [W]ord' })
 vim.keymap.set('n', '<leader>sg', require('telescope.builtin').live_grep, { desc = '[S]earch by [G]rep' })
@@ -416,16 +534,21 @@ vim.keymap.set('n', '<leader>sG', ':LiveGrepGitRoot<cr>', { desc = '[S]earch by 
 vim.keymap.set('n', '<leader>sd', require('telescope.builtin').diagnostics, { desc = '[S]earch [D]iagnostics' })
 vim.keymap.set('n', '<leader>sr', require('telescope.builtin').resume, { desc = '[S]earch [R]esume' })
 
+
 -- [[ Configure Treesitter ]]
 -- See `:help nvim-treesitter`
 -- Defer Treesitter setup after first render to improve startup time of 'nvim {filename}'
 vim.defer_fn(function()
+  require("nvim-treesitter.install").prefer_git = true
   require('nvim-treesitter.configs').setup {
     -- Add languages to be installed here that you want installed for treesitter
     ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash' },
 
     -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
     auto_install = false,
+    ignore_install = {},
+    sync_install = false,
+    modules = {},
 
     highlight = { enable = true },
     indent = { enable = true },
@@ -512,6 +635,7 @@ local on_attach = function(_, bufnr)
   nmap('<leader>ds', require('telescope.builtin').lsp_document_symbols, '[D]ocument [S]ymbols')
   nmap('<leader>ws', require('telescope.builtin').lsp_dynamic_workspace_symbols, '[W]orkspace [S]ymbols')
 
+
   -- See `:help K` for why this keymap
   nmap('K', vim.lsp.buf.hover, 'Hover Documentation')
   nmap('<C-k>', vim.lsp.buf.signature_help, 'Signature Documentation')
@@ -540,6 +664,10 @@ require('which-key').register {
   ['<leader>s'] = { name = '[S]earch', _ = 'which_key_ignore' },
   ['<leader>t'] = { name = '[T]oggle', _ = 'which_key_ignore' },
   ['<leader>w'] = { name = '[W]orkspace', _ = 'which_key_ignore' },
+
+  -- register new keybinds
+  -- Neorg
+  ['<leader>n'] = { "<cmd>Neorg journal today<cr>", "[N]otes" },
 }
 -- register which-key VISUAL mode
 -- required for visual <leader>hs (hunk stage) to work
@@ -547,6 +675,11 @@ require('which-key').register({
   ['<leader>'] = { name = 'VISUAL <leader>' },
   ['<leader>h'] = { 'Git [H]unk' },
 }, { mode = 'v' })
+
+require('which-key').register({
+  ['<leader>'] = { name = 'VISUAL <leader>' },
+  ['<leader>h'] = { 'Git [H]unk' },
+})
 
 -- mason-lspconfig requires that these setup functions are called in this order
 -- before setting up the servers.
@@ -654,6 +787,8 @@ cmp.setup {
     { name = 'luasnip' },
   },
 }
+
+
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
