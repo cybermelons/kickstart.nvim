@@ -77,6 +77,7 @@ require('lazy').setup({
     opts = {},
   },
 
+  'WhoIsSethDaniel/mason-tool-installer.nvim',
   -- Works in conjunction with LSP for faster formatting
   {
     'stevearc/conform.nvim',
@@ -88,6 +89,22 @@ require('lazy').setup({
         -- Use the "_" filetype to run formatters on filetypes that don't
         -- have other formatters configured.
         ['_'] = { 'trim_whitespace' },
+        ['javascript'] = { 'prettier' },
+        ['javascriptreact'] = { 'prettier' },
+        ['typescript'] = { 'prettier' },
+        ['typescriptreact'] = { 'prettier' },
+        ['vue'] = { 'prettier' },
+        ['css'] = { 'prettier' },
+        ['scss'] = { 'prettier' },
+        ['less'] = { 'prettier' },
+        ['html'] = { 'prettier' },
+        ['json'] = { 'prettier' },
+        ['jsonc'] = { 'prettier' },
+        ['yaml'] = { 'prettier' },
+        ['markdown'] = { 'prettier' },
+        ['markdown.mdx'] = { 'prettier' },
+        ['graphql'] = { 'prettier' },
+        ['handlebars'] = { 'prettier' },
       },
     },
   },
@@ -605,7 +622,12 @@ vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Open float
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostics list' })
 
 -- Autoformat with space-f
-vim.keymap.set('n', '<leader>f', '<cmd>Format<cr>', { desc = '[F]ormat code' })
+vim.keymap.set('n', '<leader>f', function()
+  require('conform').format {
+    async = true,
+    lsp_fallback = true,
+  }
+end, { desc = '[F]ormat code' })
 
 -- Comment with Ctrl-/
 vim.keymap.set('n', '<C-/>', '<Plug>(comment_toggle_linewise_current)', { desc = '[Ctrl-/] Comment toggle linewise' })
@@ -875,7 +897,6 @@ local servers = {
   -- rust_analyzer = {},
   -- tsserver = {},
   -- html = { filetypes = { 'html', 'twig', 'hbs'} },
-
   lua_ls = {
     Lua = {
       workspace = { checkThirdParty = false },
@@ -898,6 +919,14 @@ local mason_lspconfig = require 'mason-lspconfig'
 
 mason_lspconfig.setup {
   ensure_installed = vim.tbl_keys(servers),
+}
+
+-- Install non-lsps with mason.
+require('mason-tool-installer').setup {
+  ensure_installed = {
+    'stylua',
+    'prettier',
+  },
 }
 
 mason_lspconfig.setup_handlers {
