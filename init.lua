@@ -236,6 +236,24 @@ require('lazy').setup({
   },
 
   {
+    'stevearc/dressing.nvim',
+    opts = {},
+  },
+
+  {
+    'folke/edgy.nvim',
+    event = 'VeryLazy',
+    opts = {},
+    config = function()
+      -- views can only be fully collapsed with the global statusline
+      vim.opt.laststatus = 3
+      -- Default splitting will cause your main splits to jump when opening an edgebar.
+      -- To prevent this, set `splitkeep` to either `screen` or `topline`.
+      vim.opt.splitkeep = 'screen'
+    end,
+  },
+
+  {
     'nvim-neo-tree/neo-tree.nvim',
     opts = {},
     dependencies = {
@@ -330,11 +348,7 @@ require('lazy').setup({
     'kylechui/nvim-surround',
     version = '*', -- Use for stability; omit to use `main` branch for the latest features
     event = 'VeryLazy',
-    config = function()
-      require('nvim-surround').setup {
-        -- Configuration here, or leave empty to use defaults
-      }
-    end,
+    opts = {},
   },
 
   {
