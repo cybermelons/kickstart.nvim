@@ -98,6 +98,13 @@ require('lazy').setup({
     config = function()
       require('telescope').load_extension 'file_browser'
     end,
+    keys = {
+      {
+        '<leader>sb',
+        '<cmd>Telescope file_browser<cr>',
+        desc = '[S]earch File [B]rowser',
+      },
+    },
   },
 
   {
@@ -110,6 +117,18 @@ require('lazy').setup({
     },
   },
 
+  {
+    'mkropat/vim-ezguifont',
+    event = 'UIEnter',
+    keys = {
+      { '<C-->', '<cmd>DecreaseFont<cr>', desc = 'GUI: Decrease font size' },
+      { '<C-=>', '<cmd>IncreaseFont<cr>', desc = 'GUI: Increase font size' },
+      { '<C-0>', '<cmd>ResetFontSize<cr>', desc = 'GUI: Reset font size' },
+    },
+    config = function()
+      -- vim.o.ezguifont = 'CaskaydiaCove Nerd Font:h14'
+    end,
+  },
   {
     'nvimdev/dashboard-nvim',
     event = 'VimEnter',
@@ -259,9 +278,8 @@ require('lazy').setup({
       -- add any custom options here
     },
     keys = {
-      { '<leader>tp', [[<cmd>lua require("persistence").stop()<cr>]], desc = 'Stop Session Management' },
-      { '<leader>ts', [[<cmd>lua require("persistence").start()<cr>]], desc = 'Start Session Management' },
-      -- { '<leader>ts', require('persistence').load, desc = 'Toggle Session Management' },
+      { '<leader>tp', [[<cmd>lua require("persistence").stop()<cr>]], desc = 'Sto[p] Session Management' },
+      { '<leader>ts', [[<cmd>lua require("persistence").start()<cr>]], desc = '[S]tart Session Management' },
     },
   },
 
@@ -288,8 +306,27 @@ require('lazy').setup({
       -- "3rd/image.nvim", -- Optional image support in preview window: See `# Preview Mode` for more information
     },
     keys = {
-      -- { '<C-n>', '<cmd>Neotree toggle current reveal_force_cwd<cr>', desc = 'NeoTree' },
-      { '<C-n>', '<cmd>Neotree toggle reveal_force_cwd reveal_file=%:p:h <cr>', desc = 'NeoTree' },
+      {
+        '<C-n>',
+        function()
+          vim.cmd 'Neotree toggle %:p:h'
+        end,
+        desc = 'Toggle [N]eoTree on current file',
+      },
+      {
+        '<leader>nb',
+        function()
+          vim.cmd 'Neotree toggle show buffers right'
+        end,
+        desc = 'Toggle [N]eoTree on [b]uffers',
+      },
+      {
+        '<leader>ng',
+        function()
+          vim.cmd 'Neotree float git_status'
+        end,
+        desc = 'Show [N]eoTree on [g]it',
+      },
     },
   },
 
@@ -414,7 +451,7 @@ require('lazy').setup({
 
   {
     'cybermelons/bookmarks.nvim',
-    after = 'telescope.nvim',
+    dependencies = { 'telescope.nvim' },
     config = function()
       require('bookmarks').setup()
       require('telescope').load_extension 'bookmarks'
@@ -491,6 +528,8 @@ vim.o.completeopt = 'menuone,noselect'
 
 -- NOTE: You should make sure your terminal supports this
 vim.o.termguicolors = true
+
+vim.o.guifont = 'CaskaydiaCove Nerd Font:h14'
 
 -- [[ Basic Keymaps ]]
 
@@ -743,7 +782,7 @@ require('which-key').register {
 
   -- register new keybinds
   -- Neorg
-  ['<leader>n'] = { '<cmd>Neorg journal today<cr>', '[N]otes' },
+  ['<leader>N'] = { '<cmd>Neorg journal today<cr>', '[N]otes' },
 }
 -- register which-key VISUAL mode
 -- required for visual <leader>hs (hunk stage) to work
