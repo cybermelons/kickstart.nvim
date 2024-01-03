@@ -126,7 +126,7 @@ require('lazy').setup({
       { '<C-0>', '<cmd>ResetFontSize<cr>', desc = 'GUI: Reset font size' },
     },
     config = function()
-      -- vim.o.ezguifont = 'CaskaydiaCove Nerd Font:h14'
+      vim.cmd 'SetFont CaskaydiaCove Nerd Font:h14'
     end,
   },
   {
@@ -142,7 +142,8 @@ require('lazy').setup({
           mru = { limit = 5 },
           shortcut = {
             { desc = '󰊳 Update', group = '@property', action = 'Lazy update', key = 'u' },
-            { desc = '⚡Restore Session', group = '@property', action = 'lua require("persistence").load({ last = true})', key = 'r' },
+            -- { desc = '⚡Restore Session', group = '@property', action = 'lua require("persistence").load({ last = true})', key = 'r' },
+            { desc = '⚡Restore Session', group = '@property', action = 'SessionLoadLast', key = 'r' },
             {
               icon = ' ',
               icon_hl = '@variable',
@@ -271,16 +272,45 @@ require('lazy').setup({
   },
 
   -- session management
+  -- {
+  --   'folke/persistence.nvim',
+  --   event = 'BufReadPre', -- this will only start session saving when an actual file was opened
+  --   opts = {
+  --     -- add any custom options here
+  --   },
+  --   keys = {
+  --     { '<leader>tp', [[<cmd>lua require("persistence").stop()<cr>]], desc = 'Sto[p] Session Management' },
+  --     { '<leader>ts', [[<cmd>lua require("persistence").start()<cr>]], desc = '[S]tart Session Management' },
+  --   },
+  -- },
   {
-    'folke/persistence.nvim',
-    event = 'BufReadPre', -- this will only start session saving when an actual file was opened
-    opts = {
-      -- add any custom options here
-    },
+    'olimorris/persisted.nvim',
+    dependencies = { 'nvim-telescope/telescope.nvim' },
+    config = function()
+      require('persisted').setup {
+        save_dir = vim.fn.expand(vim.fn.stdpath 'data' .. '/sessions/'), -- directory where session files are saved
+        silent = false, -- silent nvim message when sourcing session file
+        use_git_branch = true, -- create session files based on the branch of a git enabled repository
+        default_branch = 'main', -- the branch to load if a session file is not found for the current branch
+        autosave = true, -- automatically save session files when exiting Neovim
+        should_autosave = nil, -- function to determine if a session should be autosaved
+        autoload = false, -- automatically load the session for the cwd on Neovim startup
+        on_autoload_no_session = nil, -- function to run when `autoload = true` but there is no session to load
+        follow_cwd = true, -- change session file name to match current working directory if it changes
+        allowed_dirs = nil, -- table of dirs that the plugin will auto-save and auto-load from
+        ignored_dirs = nil, -- table of dirs that are ignored when auto-saving and auto-loading
+        telescope = {
+          reset_prompt = true, -- Reset the Telescope prompt after an action?
+        },
+      }
+      require('telescope').load_extension 'persisted'
+    end,
     keys = {
-      { '<leader>tp', [[<cmd>lua require("persistence").stop()<cr>]], desc = 'Sto[p] Session Management' },
-      { '<leader>ts', [[<cmd>lua require("persistence").start()<cr>]], desc = '[S]tart Session Management' },
+      -- { '<leader>tp', [[<cmd>lua require("persistence").stop()<cr>]], desc = 'Sto[p] Session Management' },
+      -- { '<leader>ts', [[<cmd>lua require("persistence").start()<cr>]], desc = '[S]tart Session Management' },
+      { '<leader>ss', [[<cmd>Telescope persisted<cr>]], desc = '[S]essions' },
     },
+    lazy = false,
   },
 
   {
@@ -379,6 +409,13 @@ require('lazy').setup({
         cond = function()
           return vim.fn.executable 'make' == 1
         end,
+      },
+    },
+    opts = {
+      extensions = {
+        persisted = {
+          layout_config = { width = 0.55, height = 0.55 },
+        },
       },
     },
   },
@@ -626,13 +663,14 @@ vim.keymap.set('n', '<leader>/', function()
   -- You can pass additional configuration to telescope to change theme, layout, etc.
   require('telescope.builtin').current_buffer_fuzzy_find(require('telescope.themes').get_dropdown {
     winblend = 10,
-    previewer = false,
+    previewer = true,
   })
 end, { desc = '[/] Fuzzily search in current buffer' })
 
 local function telescope_live_grep_open_files()
   require('telescope.builtin').live_grep {
     grep_open_files = true,
+    enable_preview = true,
     prompt_title = 'Live Grep in Open Files',
   }
 end
