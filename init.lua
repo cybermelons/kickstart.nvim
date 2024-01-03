@@ -101,6 +101,16 @@ require('lazy').setup({
   },
 
   {
+    'folke/todo-comments.nvim',
+    dependencies = { 'nvim-lua/plenary.nvim' },
+    opts = {
+      -- your configuration comes here
+      -- or leave it empty to use the default settings
+      -- refer to the configuration section below
+    },
+  },
+
+  {
     'nvimdev/dashboard-nvim',
     event = 'VimEnter',
     config = function()
@@ -113,6 +123,7 @@ require('lazy').setup({
           mru = { limit = 5 },
           shortcut = {
             { desc = '󰊳 Update', group = '@property', action = 'Lazy update', key = 'u' },
+            { desc = '⚡Restore Session', group = '@property', action = 'lua require("persistence").load({ last = true})', key = 'r' },
             {
               icon = ' ',
               icon_hl = '@variable',
@@ -240,6 +251,20 @@ require('lazy').setup({
     opts = {},
   },
 
+  -- session management
+  {
+    'folke/persistence.nvim',
+    event = 'BufReadPre', -- this will only start session saving when an actual file was opened
+    opts = {
+      -- add any custom options here
+    },
+    keys = {
+      { '<leader>tp', [[<cmd>lua require("persistence").stop()<cr>]], desc = 'Stop Session Management' },
+      { '<leader>ts', [[<cmd>lua require("persistence").start()<cr>]], desc = 'Start Session Management' },
+      -- { '<leader>ts', require('persistence').load, desc = 'Toggle Session Management' },
+    },
+  },
+
   {
     'folke/edgy.nvim',
     event = 'VeryLazy',
@@ -263,7 +288,8 @@ require('lazy').setup({
       -- "3rd/image.nvim", -- Optional image support in preview window: See `# Preview Mode` for more information
     },
     keys = {
-      { '<C-n>', '<cmd>Neotree toggle<cr>', desc = 'NeoTree' },
+      -- { '<C-n>', '<cmd>Neotree toggle current reveal_force_cwd<cr>', desc = 'NeoTree' },
+      { '<C-n>', '<cmd>Neotree toggle reveal_force_cwd reveal_file=%:p:h <cr>', desc = 'NeoTree' },
     },
   },
 
@@ -358,17 +384,6 @@ require('lazy').setup({
     },
     lazy = false,
   },
-
-  --{
-  --  "Pocco81/auto-save.nvim",
-  --  config = function()
-  --    require("auto-save").setup {
-  --      -- your config goes here
-  --      -- or just leave it empty :)
-  --    }
-  --vim.keymap.set('n', '<leader>ta', '<cmd>ASToggle<CR>', { desc = 'toggle autosave', buffer = true })
-  --  end,
-  --},
 
   {
     'nvim-neorg/neorg',
