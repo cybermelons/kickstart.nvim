@@ -289,17 +289,18 @@ require('lazy').setup({
   },
 
   -- session management
-  -- {
-  --   'folke/persistence.nvim',
-  --   event = 'BufReadPre', -- this will only start session saving when an actual file was opened
-  --   opts = {
-  --     -- add any custom options here
-  --   },
-  --   keys = {
-  --     { '<leader>tp', [[<cmd>lua require("persistence").stop()<cr>]], desc = 'Sto[p] Session Management' },
-  --     { '<leader>ts', [[<cmd>lua require("persistence").start()<cr>]], desc = '[S]tart Session Management' },
-  --   },
-  -- },
+  {
+    'folke/persistence.nvim',
+    event = 'BufReadPre', -- this will only start session saving when an actual file was opened
+    opts = {
+      -- add any custom options here
+    },
+    keys = {
+      { '<leader>tp', [[<cmd>lua require("persistence").stop()<cr>]], desc = 'Sto[p] Session Management' },
+      { '<leader>ts', [[<cmd>lua require("persistence").start()<cr>]], desc = '[S]tart Session Management' },
+    },
+    enabled = false,
+  },
   {
     'olimorris/persisted.nvim',
     dependencies = { 'nvim-telescope/telescope.nvim' },
@@ -341,6 +342,58 @@ require('lazy').setup({
       -- To prevent this, set `splitkeep` to either `screen` or `topline`.
       vim.opt.splitkeep = 'screen'
     end,
+  },
+
+  {
+    'romgrk/barbar.nvim',
+    dependencies = {
+      'lewis6991/gitsigns.nvim', -- OPTIONAL: for git status
+      'nvim-tree/nvim-web-devicons', -- OPTIONAL: for file icons
+    },
+    -- init = function()
+    --   vim.g.barbar_auto_setup = false
+    --   local map = vim.api.nvim_set_keymap
+    --   local opts = { noremap = true, silent = true }
+    --   -- Move to previous/next
+    --   map('n', 'gT', '<Cmd>BufferPrevious<CR>', opts)
+    --   map('n', 'gt', '<Cmd>BufferNext<CR>', opts)
+    --   map('n', '<C-q>', '<Cmd>BufferClose<CR>', opts)
+    -- end,
+    opts = {
+      sidebar_filetypes = {
+        ['neo-tree'] = { text = 'Files' },
+      },
+      -- lazy.nvim will automatically call setup for you. put your options here, anything missing will use the default:
+      -- animation = true,
+      -- insert_at_start = true,
+      -- …etc.
+    },
+    keys = {
+      { 'gT', '<Cmd>BufferPrevious<CR>' },
+      { 'gt', '<Cmd>BufferNext<CR>' },
+      { '<C-q>', '<Cmd>BufferClose<CR>' },
+    },
+    enabled = false,
+  },
+
+  {
+    'nanozuki/tabby.nvim',
+    event = 'VimEnter',
+    dependencies = 'nvim-tree/nvim-web-devicons',
+    opts = {},
+    enabled = true,
+  },
+
+  {
+    'akinsho/bufferline.nvim',
+    version = '*',
+    dependencies = 'nvim-tree/nvim-web-devicons',
+    opts = {
+      options = {
+        mode = 'tabs',
+      },
+    },
+    enabled = false,
   },
 
   {
