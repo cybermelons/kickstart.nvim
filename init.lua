@@ -1,3 +1,4 @@
+-- FIXME: crashing on q! sometimes. it's not the sessions...
 -- See `:help mapleader`
 --  NOTE: Must happen before plugins are required (otherwise wrong leader will be used)
 vim.g.mapleader = ' '
@@ -18,6 +19,28 @@ if not vim.loop.fs_stat(lazypath) then
   }
 end
 vim.opt.rtp:prepend(lazypath)
+
+-- Godot setup function
+local setup_godot_dap = function()
+  local dap = require 'dap'
+
+  dap.adapters.godot = {
+    type = 'server',
+    host = '127.0.0.1',
+    port = 6006,
+  }
+
+  dap.configurations.gdscript = {
+    {
+      launch_game_instance = false,
+      launch_scene = false,
+      name = 'Launch scene',
+      project = '${workspaceFolder}',
+      request = 'launch',
+      type = 'godot',
+    },
+  }
+end
 
 -- [[ Configure plugins ]]
 -- NOTE: Here is where you install your plugins.
@@ -56,7 +79,8 @@ require('lazy').setup({
 
   {
     -- Autocompletion
-    'hrsh7th/nvim-cmp',
+    'hrsh7th/nvim-cmp', 
+    event = 'InsertEnter', -- TODO: nvim-cmp lazy loading
     dependencies = {
       -- Snippet Engine & its associated nvim-cmp source
       'L3MON4D3/LuaSnip',
@@ -71,6 +95,14 @@ require('lazy').setup({
     },
   },
 
+  {
+    'mfussenegger/nvim-dap',
+    ft = { 'gdscript' },
+    config = function()
+      setup_godot_dap()
+    end,
+  },
+
   -- Useful plugin to show you pending keybinds.
   {
     'folke/which-key.nvim',
@@ -78,9 +110,13 @@ require('lazy').setup({
   },
 
   'WhoIsSethDaniel/mason-tool-installer.nvim',
+
+
   -- Works in conjunction with LSP for faster formatting
   {
     'stevearc/conform.nvim',
+    event = { 'BufWritePre' },
+    cmd = { 'ConformInfo' },
     opts = {
       formatters_by_ft = {
         lua = { 'stylua', 'trim_whitespace' },
@@ -89,21 +125,21 @@ require('lazy').setup({
         -- Use the "_" filetype to run formatters on filetypes that don't
         -- have other formatters configured.
         ['_'] = { 'trim_whitespace' },
-        ['javascript'] = { 'prettier' },
-        ['javascriptreact'] = { 'prettier' },
-        ['typescript'] = { 'prettier' },
-        ['typescriptreact'] = { 'prettier' },
-        ['vue'] = { 'prettier' },
-        ['css'] = { 'prettier' },
-        ['scss'] = { 'prettier' },
-        ['less'] = { 'prettier' },
-        ['html'] = { 'prettier' },
-        ['jsonc'] = { 'prettier' },
-        ['yaml'] = { 'prettier' },
-        ['markdown'] = { 'prettier' },
-        ['markdown.mdx'] = { 'prettier' },
-        ['graphql'] = { 'prettier' },
-        ['handlebars'] = { 'prettier' },
+        ['javascript'] = { 'prettierd', 'prettier' },
+        ['javascriptreact'] = { 'prettierd', 'prettier' },
+        ['typescript'] = { 'prettierd', 'prettier' },
+        ['typescriptreact'] = { 'prettierd', 'prettier' },
+        ['vue'] = { 'prettierd', 'prettier' },
+        ['css'] = { 'prettierd', 'prettier' },
+        ['scss'] = { 'prettierd', 'prettier' },
+        ['less'] = { 'prettierd', 'prettier' },
+        ['html'] = { 'prettierd', 'prettier' },
+        ['jsonc'] = { 'prettierd', 'prettier' },
+        ['yaml'] = { 'prettierd', 'prettier' },
+        ['markdown'] = { 'prettierd', 'prettier' },
+        ['markdown.mdx'] = { 'prettierd', 'prettier' },
+        ['graphql'] = { 'prettierd', 'prettier' },
+        ['handlebars'] = { 'prettierd', 'prettier' },
       },
     },
   },
@@ -135,8 +171,10 @@ require('lazy').setup({
     keys = {
       { '<leader>st', 'TodoTelescope cwd=%:p:h', desc = '[S]earch [T]odo' },
     },
+    lazy = false,
   },
 
+  -- Sets fontsizes on GUIs
   {
     'mkropat/vim-ezguifont',
     event = 'UIEnter',
@@ -149,6 +187,7 @@ require('lazy').setup({
       vim.cmd 'SetFont CaskaydiaCove Nerd Font:h14'
     end,
   },
+
   {
     'nvimdev/dashboard-nvim',
     event = 'VimEnter',
@@ -304,6 +343,7 @@ require('lazy').setup({
     },
     enabled = false,
   },
+  -- Chosen in favor of persistence.nvim
   {
     'olimorris/persisted.nvim',
     dependencies = { 'nvim-telescope/telescope.nvim' },
@@ -345,6 +385,7 @@ require('lazy').setup({
       -- To prevent this, set `splitkeep` to either `screen` or `topline`.
       vim.opt.splitkeep = 'screen'
     end,
+    enabled = false, -- disabled until I properly configure this
   },
 
   {
@@ -390,6 +431,7 @@ require('lazy').setup({
 
   {
     'zbirenbaum/copilot-cmp',
+    event = 'InsertEnter',
     dependencies = {
       'zbirenbaum/copilot.lua',
     },
@@ -547,6 +589,8 @@ require('lazy').setup({
   {
     -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
+    cmd = { 'TSUpdateSync', 'TSUpdate', 'TSInstall' },
+    event = { 'VeryLazy' },
     dependencies = {
       'nvim-treesitter/nvim-treesitter-textobjects',
     },
@@ -582,7 +626,15 @@ require('lazy').setup({
   {
     'nvim-neorg/neorg',
     build = ':Neorg sync-parsers',
+    ft = 'norg',
     dependencies = { 'nvim-lua/plenary.nvim' },
+    keys = {
+      {
+        '<leader>N',
+        '<cmd>Neorg journal today<cr>',
+        desc = '[N]otes',
+      },
+    },
     config = function()
       require('neorg').setup {
         load = {
@@ -665,6 +717,7 @@ vim.o.clipboard = 'unnamedplus'
 
 -- Enable break indent
 vim.o.breakindent = true
+vim.o.autoindent = true
 
 -- Save undo history
 vim.o.undofile = true
@@ -943,10 +996,6 @@ require('which-key').register {
   ['<leader>s'] = { name = '[S]earch', _ = 'which_key_ignore' },
   ['<leader>t'] = { name = '[T]oggle', _ = 'which_key_ignore' },
   ['<leader>w'] = { name = '[W]orkspace', _ = 'which_key_ignore' },
-
-  -- register new keybinds
-  -- Neorg
-  ['<leader>N'] = { '<cmd>Neorg journal today<cr>', '[N]otes' },
 }
 -- register which-key VISUAL mode
 -- required for visual <leader>hs (hunk stage) to work
@@ -1038,7 +1087,6 @@ local has_words_before = function()
   local line, col = unpack(vim.api.nvim_win_get_cursor(0))
   return col ~= 0 and vim.api.nvim_buf_get_text(0, line - 1, 0, line - 1, col, {})[1]:match '^%s*$' == nil
 end
-
 
 cmp.setup {
   snippet = {
