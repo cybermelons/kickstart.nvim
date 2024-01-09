@@ -1,5 +1,5 @@
 -- FIXME: crashing on q! sometimes. it's not the sessions...
--- TODO: Dashboard workspaces don't load 
+-- TODO: Dashboard workspaces don't load
 -- See `:help mapleader`
 --  NOTE: Must happen before plugins are required (otherwise wrong leader will be used)
 vim.g.mapleader = ' '
@@ -975,10 +975,31 @@ local function telescope_live_grep_open_files()
     prompt_title = 'Live Grep in Open Files',
   }
 end
+
+-- This function is basically find_files() combined with git_files(). The appeal of this function over the default find_files() is that you can find files that are not tracked by git. Also, find_files() only finds files in the current directory but this function finds files regardless of your current directory as long as you're in the project directory.
+local find_files_from_project_git_root = function()
+  local function is_git_repo()
+    vim.fn.system("git rev-parse --is-inside-work-tree")
+    return vim.v.shell_error == 0
+  end
+  local function get_git_root()
+    local dot_git_path = vim.fn.finddir(".git", ".;")
+    return vim.fn.fnamemodify(dot_git_path, ":h")
+  end
+  local opts = {}
+  if is_git_repo() then
+    opts = {
+      cwd = get_git_root(),
+    }
+  end
+  require("telescope.builtin").find_files(opts)
+end
+
+
 vim.keymap.set('n', '<leader>sk', require('telescope.builtin').keymaps, { desc = '[S]earch [K]eymaps' })
 vim.keymap.set('n', '<leader>s/', telescope_live_grep_open_files, { desc = '[S]earch [/] in Open Files' })
 vim.keymap.set('n', '<leader>gf', require('telescope.builtin').git_files, { desc = 'Search [G]it [F]iles' })
-vim.keymap.set('n', '<leader>sf', require('telescope.builtin').find_files, { desc = '[S]earch [F]iles' })
+vim.keymap.set('n', '<leader>sf', find_files_from_project_git_root, { desc = '[S]earch [F]iles' })
 vim.keymap.set('n', '<C-P>', require('telescope.builtin').find_files, { desc = 'Search Files' })
 vim.keymap.set('n', '<leader>sh', require('telescope.builtin').help_tags, { desc = '[S]earch [H]elp' })
 vim.keymap.set('n', '<leader>sw', require('telescope.builtin').grep_string, { desc = '[S]earch current [W]ord' })
@@ -986,6 +1007,7 @@ vim.keymap.set('n', '<leader>sg', require('telescope.builtin').live_grep, { desc
 vim.keymap.set('n', '<leader>sG', ':LiveGrepGitRoot<cr>', { desc = '[S]earch by [G]rep on Git Root' })
 vim.keymap.set('n', '<leader>sd', require('telescope.builtin').diagnostics, { desc = '[S]earch [D]iagnostics' })
 vim.keymap.set('n', '<leader>sr', require('telescope.builtin').resume, { desc = '[S]earch [R]esume' })
+
 
 -- [[ Configure Treesitter ]]
 -- See `:help nvim-treesitter`
@@ -1153,7 +1175,8 @@ mason_lspconfig.setup_handlers {
 require('lspconfig').gdscript.setup {
   capabilities = capabilities,
   on_attach = on_attach,
-  cmd = {'ncat', 'localhost', '6005'},
+  -- NOTE: for whatever reason, vim.lsp.rpc.connect() doesn't work with gdscript
+  cmd = { 'ncat', 'localhost', '6005' },
   filetypes = { 'gd', 'gdscript', 'gdscript3' },
   root_dir = function(fname)
     return require('lspconfig').util.root_pattern('project.godot', '.git')(fname) or vim.fn.getcwd()
@@ -1221,6 +1244,24 @@ cmp.setup {
     { name = 'path' },
   },
 }
+
+-- autoruns on BufEnter
+-- create autocommand to set tabs
+-- Set shiftwidth and tabstop to 4 only for gdscript files
+
+
+vim.api.nvim_create_autocmd({ 'BufEnter' }, {
+  pattern = { '*.gd', '*.gdscript' },
+  callback = function()
+    vim.bo.tabstop = 4
+    vim.bo.shiftwidth = 4
+  end,
+})
+
+-- vim.cmd.autocmd('BufEnter', '*.gd', function()
+--   vim.bo.tabstop = 4
+--   vim.bo.shiftwidth = 4
+-- end)
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
