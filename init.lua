@@ -1,4 +1,5 @@
 -- FIXME: crashing on q! sometimes. it's not the sessions...
+-- TODO: Dashboard workspaces don't load 
 -- See `:help mapleader`
 --  NOTE: Must happen before plugins are required (otherwise wrong leader will be used)
 vim.g.mapleader = ' '
@@ -20,6 +21,52 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
+local on_attach = function(_, bufnr)
+  -- NOTE: Remember that lua is a real programming language, and as such it is possible
+  -- to define small helper and utility functions so you don't have to repeat yourself
+  -- many times.
+  --
+  -- In this case, we create a function that lets us more easily define mappings specific
+  -- for LSP related items. It sets the mode, buffer and description for us each time.
+  local nmap = function(keys, func, desc)
+    if desc then
+      desc = 'LSP: ' .. desc
+    end
+
+    vim.keymap.set('n', keys, func, { buffer = bufnr, desc = desc })
+  end
+
+  nmap('<leader>rn', vim.lsp.buf.rename, '[R]e[n]ame')
+  nmap('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction')
+
+  nmap('gd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
+  nmap('gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
+  nmap('gI', require('telescope.builtin').lsp_implementations, '[G]oto [I]mplementation')
+  nmap('<leader>D', require('telescope.builtin').lsp_type_definitions, 'Type [D]efinition')
+  nmap('<leader>ds', require('telescope.builtin').lsp_document_symbols, '[D]ocument [S]ymbols')
+  nmap('<leader>ws', require('telescope.builtin').lsp_dynamic_workspace_symbols, '[W]orkspace [S]ymbols')
+
+  -- See `:help K` for why this keymap
+  nmap('K', vim.lsp.buf.hover, 'Hover Documentation')
+  nmap('<C-k>', vim.lsp.buf.signature_help, 'Signature Documentation')
+
+  -- Lesser used LSP functionality
+  nmap('gD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
+  nmap('<leader>wa', vim.lsp.buf.add_workspace_folder, '[W]orkspace [A]dd Folder')
+  nmap('<leader>wr', vim.lsp.buf.remove_workspace_folder, '[W]orkspace [R]emove Folder')
+  nmap('<leader>wl', function()
+    print(vim.inspect(vim.lsp.buf.list_workspace_folders()))
+  end, '[W]orkspace [L]ist Folders')
+
+  -- Create a command `:Format` local to the LSP buffer
+  vim.api.nvim_buf_create_user_command(bufnr, 'Format', function(_)
+    -- vim.lsp.buf.format()
+    require('conform').format {
+      async = true,
+      lsp_fallback = true,
+    }
+  end, { desc = 'Format current buffer with LSP' })
+end
 -- Godot setup function
 local setup_godot_dap = function()
   local dap = require 'dap'
@@ -79,7 +126,7 @@ require('lazy').setup({
 
   {
     -- Autocompletion
-    'hrsh7th/nvim-cmp', 
+    'hrsh7th/nvim-cmp',
     event = 'InsertEnter', -- TODO: nvim-cmp lazy loading
     dependencies = {
       -- Snippet Engine & its associated nvim-cmp source
@@ -98,8 +145,84 @@ require('lazy').setup({
   {
     'mfussenegger/nvim-dap',
     ft = { 'gdscript' },
+    dependencies = {
+      'neovim/nvim-lspconfig',
+      -- fancy UI for the debugger
+      {
+        'rcarriga/nvim-dap-ui',
+      -- stylua: ignore
+      keys = {
+        { "<leader>du", function() require("dapui").toggle({ }) end, desc = "Dap UI" },
+        { "<leader>de", function() require("dapui").eval() end, desc = "Eval", mode = {"n", "v"} },
+      },
+        opts = {},
+        config = function(_, opts)
+          -- setup dap config by VsCode launch.json file
+          -- require("dap.ext.vscode").load_launchjs()
+          local dap = require 'dap'
+          local dapui = require 'dapui'
+          dapui.setup(opts)
+          dap.listeners.after.event_initialized['dapui_config'] = function()
+            dapui.open {}
+          end
+          dap.listeners.before.event_terminated['dapui_config'] = function()
+            dapui.close {}
+          end
+          dap.listeners.before.event_exited['dapui_config'] = function()
+            dapui.close {}
+          end
+        end,
+      },
+
+      -- virtual text for the debugger
+      {
+        'theHamsta/nvim-dap-virtual-text',
+        opts = {},
+      },
+
+      -- which key integration
+      {
+        'folke/which-key.nvim',
+        optional = true,
+        opts = {
+          defaults = {
+            ['<leader>d'] = { name = '+debug' },
+          },
+        },
+      },
+
+      -- mason.nvim integration
+      {
+        'jay-babu/mason-nvim-dap.nvim',
+        dependencies = 'mason.nvim',
+        cmd = { 'DapInstall', 'DapUninstall' },
+        opts = {
+          -- Makes a best effort to setup the various debuggers with
+          -- reasonable debug configurations
+          automatic_installation = true,
+
+          -- You can provide additional configuration to the handlers,
+          -- see mason-nvim-dap README for more information
+          handlers = {},
+
+          -- You'll need to check that you have the required things installed
+          -- online, please don't ask me how to install them :)
+          ensure_installed = {
+            -- Update this to ensure that you have the debuggers for the langs you want
+          },
+        },
+      },
+    },
     config = function()
       setup_godot_dap()
+      -- require('nvim-dap').setup()
+      -- require('lspconfig').gdscript.setup {
+      --   on_attach = on_attach,
+      --   flags = {
+      --     debounce_text_changes = 150,
+      --   },
+      --   filetypes = { 'gd', 'gdscript', 'gdscript3' },
+      -- }
     end,
   },
 
@@ -110,7 +233,6 @@ require('lazy').setup({
   },
 
   'WhoIsSethDaniel/mason-tool-installer.nvim',
-
 
   -- Works in conjunction with LSP for faster formatting
   {
@@ -169,7 +291,7 @@ require('lazy').setup({
       --
     },
     keys = {
-      { '<leader>st', 'TodoTelescope cwd=%:p:h', desc = '[S]earch [T]odo' },
+      { '<leader>st', '<cmd>TodoTelescope cwd=%:p:h<cr>', desc = '[S]earch [T]odo' },
     },
     lazy = false,
   },
@@ -661,6 +783,7 @@ require('lazy').setup({
   {
     'cybermelons/bookmarks.nvim',
     dependencies = { 'telescope.nvim' },
+    event = 'VeryLazy',
     config = function()
       require('bookmarks').setup()
       require('telescope').load_extension 'bookmarks'
@@ -939,52 +1062,6 @@ end, 0)
 
 -- [[ Configure LSP ]]
 --  This function gets run when an LSP connects to a particular buffer.
-local on_attach = function(_, bufnr)
-  -- NOTE: Remember that lua is a real programming language, and as such it is possible
-  -- to define small helper and utility functions so you don't have to repeat yourself
-  -- many times.
-  --
-  -- In this case, we create a function that lets us more easily define mappings specific
-  -- for LSP related items. It sets the mode, buffer and description for us each time.
-  local nmap = function(keys, func, desc)
-    if desc then
-      desc = 'LSP: ' .. desc
-    end
-
-    vim.keymap.set('n', keys, func, { buffer = bufnr, desc = desc })
-  end
-
-  nmap('<leader>rn', vim.lsp.buf.rename, '[R]e[n]ame')
-  nmap('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction')
-
-  nmap('gd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
-  nmap('gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
-  nmap('gI', require('telescope.builtin').lsp_implementations, '[G]oto [I]mplementation')
-  nmap('<leader>D', require('telescope.builtin').lsp_type_definitions, 'Type [D]efinition')
-  nmap('<leader>ds', require('telescope.builtin').lsp_document_symbols, '[D]ocument [S]ymbols')
-  nmap('<leader>ws', require('telescope.builtin').lsp_dynamic_workspace_symbols, '[W]orkspace [S]ymbols')
-
-  -- See `:help K` for why this keymap
-  nmap('K', vim.lsp.buf.hover, 'Hover Documentation')
-  nmap('<C-k>', vim.lsp.buf.signature_help, 'Signature Documentation')
-
-  -- Lesser used LSP functionality
-  nmap('gD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
-  nmap('<leader>wa', vim.lsp.buf.add_workspace_folder, '[W]orkspace [A]dd Folder')
-  nmap('<leader>wr', vim.lsp.buf.remove_workspace_folder, '[W]orkspace [R]emove Folder')
-  nmap('<leader>wl', function()
-    print(vim.inspect(vim.lsp.buf.list_workspace_folders()))
-  end, '[W]orkspace [L]ist Folders')
-
-  -- Create a command `:Format` local to the LSP buffer
-  vim.api.nvim_buf_create_user_command(bufnr, 'Format', function(_)
-    -- vim.lsp.buf.format()
-    require('conform').format {
-      async = true,
-      lsp_fallback = true,
-    }
-  end, { desc = 'Format current buffer with LSP' })
-end
 
 -- document existing key chains
 require('which-key').register {
@@ -1070,6 +1147,16 @@ mason_lspconfig.setup_handlers {
       settings = servers[server_name],
       filetypes = (servers[server_name] or {}).filetypes,
     }
+  end,
+}
+
+require('lspconfig').gdscript.setup {
+  capabilities = capabilities,
+  on_attach = on_attach,
+  cmd = {'ncat', 'localhost', '6005'},
+  filetypes = { 'gd', 'gdscript', 'gdscript3' },
+  root_dir = function(fname)
+    return require('lspconfig').util.root_pattern('project.godot', '.git')(fname) or vim.fn.getcwd()
   end,
 }
 
