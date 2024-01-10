@@ -146,6 +146,41 @@ require('lazy').setup({
   {
     'mfussenegger/nvim-dap',
     ft = { 'gdscript' },
+    keys = {
+      { '<leader>db', function() require('dap').toggle_breakpoint() end, desc = 'DAP: Toggle [B]reakpoint' },
+      {
+        '<leader>df',
+        function()
+          local widgets = require 'dap.ui.widgets'
+          widgets.centered_float(widgets.frames)
+        end,
+        desc = 'DAP: Show [F]rames',
+      },
+      {
+        '<F5>',
+        function()
+          require('dap').continue()
+        end,
+      },
+      {
+        '<F10>',
+        function()
+          require('dap').step_over()
+        end,
+      },
+      {
+        '<F11>',
+        function()
+          require('dap').step_into()
+        end,
+      },
+      {
+        '<F12>',
+        function()
+          require('dap').step_out()
+        end,
+      },
+    },
     dependencies = {
       'neovim/nvim-lspconfig',
       -- fancy UI for the debugger
@@ -153,8 +188,8 @@ require('lazy').setup({
         'rcarriga/nvim-dap-ui',
       -- stylua: ignore
       keys = {
-        { "<leader>du", function() require("dapui").toggle({ }) end, desc = "Dap UI" },
-        { "<leader>de", function() require("dapui").eval() end, desc = "Eval", mode = {"n", "v"} },
+        { "<leader>du", function() require("dapui").toggle({ }) end, desc = "DAP: UI" },
+        { "<leader>de", function() require("dapui").eval() end, desc = "DAP: Eval", mode = {"n", "v"} },
       },
         opts = {},
         config = function(_, opts)
@@ -654,7 +689,6 @@ require('lazy').setup({
     'folke/tokyonight.nvim',
     lazy = false,
     priority = 1000,
-    opts = {},
     config = function()
       vim.cmd.colorscheme 'tokyonight-moon'
     end,
