@@ -24,6 +24,110 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
+local configure_telescope = function()
+  -- [[ Configure Telescope ]]
+  -- See `:help telescope` and `:help telescope.setup()`
+  require('telescope').setup {
+    defaults = {
+      mappings = {
+        i = {
+          ['<C-u>'] = false,
+          ['<C-d>'] = false,
+        },
+      },
+    },
+  }
+
+  -- Enable telescope fzf native, if installed
+  pcall(require('telescope').load_extension, 'fzf')
+
+  -- Telescope live_grep in git root
+  -- Function to find the git root directory based on the current buffer's path
+  local function find_git_root()
+    -- Use the current buffer's path as the starting point for the git search
+    local current_file = vim.api.nvim_buf_get_name(0)
+    local current_dir
+    local cwd = vim.fn.getcwd()
+    -- If the buffer is not associated with a file, return nil
+    if current_file == '' then
+      current_dir = cwd
+    else
+      -- Extract the directory from the current file's path
+      current_dir = vim.fn.fnamemodify(current_file, ':h')
+    end
+
+    -- Find the Git root directory from the current file's path
+    local git_root = vim.fn.systemlist('git -C ' .. vim.fn.escape(current_dir, ' ') .. ' rev-parse --show-toplevel')[1]
+    if vim.v.shell_error ~= 0 then
+      print 'Not a git repository. Searching on current working directory'
+      return cwd
+    end
+    return git_root
+  end
+
+  -- Custom live_grep function to search in git root
+  local function live_grep_git_root()
+    local git_root = find_git_root()
+    if git_root then
+      require('telescope.builtin').live_grep {
+        search_dirs = { git_root },
+      }
+    end
+  end
+
+  vim.api.nvim_create_user_command('LiveGrepGitRoot', live_grep_git_root, {})
+
+  -- See `:help telescope.builtin`
+  vim.keymap.set('n', '<leader>?', require('telescope.builtin').oldfiles, { desc = '[?] Find recently opened files' })
+  vim.keymap.set('n', '<leader><space>', require('telescope.builtin').builtin, { desc = '[ ] Select pickers' })
+  vim.keymap.set('n', '<leader>/', function()
+    -- You can pass additional configuration to telescope to change theme, layout, etc.
+    require('telescope.builtin').current_buffer_fuzzy_find(require('telescope.themes').get_dropdown {
+      winblend = 10,
+      previewer = true,
+    })
+  end, { desc = '[/] Fuzzily search in current buffer' })
+
+  local function telescope_live_grep_open_files()
+    require('telescope.builtin').live_grep {
+      grep_open_files = true,
+      enable_preview = true,
+      prompt_title = 'Live Grep in Open Files',
+    }
+  end
+
+  -- This function is basically find_files() combined with git_files(). The appeal of this function over the default find_files() is that you can find files that are not tracked by git. Also, find_files() only finds files in the current directory but this function finds files regardless of your current directory as long as you're in the project directory.
+  local find_files_from_project_git_root = function()
+    local function is_git_repo()
+      vim.fn.system 'git rev-parse --is-inside-work-tree'
+      return vim.v.shell_error == 0
+    end
+    local function get_git_root()
+      local dot_git_path = vim.fn.finddir('.git', '.;')
+      return vim.fn.fnamemodify(dot_git_path, ':h')
+    end
+    local opts = {}
+    if is_git_repo() then
+      opts = {
+        cwd = get_git_root(),
+      }
+    end
+    require('telescope.builtin').find_files(opts)
+  end
+
+  vim.keymap.set('n', '<leader>sk', require('telescope.builtin').keymaps, { desc = '[S]earch [K]eymaps' })
+  vim.keymap.set('n', '<leader>s/', telescope_live_grep_open_files, { desc = '[S]earch [/] in Open Files' })
+  vim.keymap.set('n', '<leader>gf', require('telescope.builtin').git_files, { desc = 'Search [G]it [F]iles' })
+  vim.keymap.set('n', '<leader>sf', find_files_from_project_git_root, { desc = '[S]earch [F]iles' })
+  vim.keymap.set('n', '<C-P>', find_files_from_project_git_root, { desc = 'Search Files' })
+  vim.keymap.set('n', '<leader>sh', require('telescope.builtin').help_tags, { desc = '[S]earch [H]elp' })
+  vim.keymap.set('n', '<leader>sw', require('telescope.builtin').grep_string, { desc = '[S]earch current [W]ord' })
+  vim.keymap.set('n', '<leader>sg', require('telescope.builtin').live_grep, { desc = '[S]earch by [G]rep' })
+  vim.keymap.set('n', '<leader>sG', ':LiveGrepGitRoot<cr>', { desc = '[S]earch by [G]rep on Git Root' })
+  vim.keymap.set('n', '<leader>sd', require('telescope.builtin').diagnostics, { desc = '[S]earch [D]iagnostics' })
+  vim.keymap.set('n', '<leader>sr', require('telescope.builtin').resume, { desc = '[S]earch [R]esume' })
+end
+
 local on_attach = function(_, bufnr)
   -- NOTE: Remember that lua is a real programming language, and as such it is possible
   -- to define small helper and utility functions so you don't have to repeat yourself
@@ -70,6 +174,107 @@ local on_attach = function(_, bufnr)
     }
   end, { desc = 'Format current buffer with LSP' })
 end
+
+local configure_lsp = function()
+  -- [[ Configure LSP ]]
+  --  This function gets run when an LSP connects to a particular buffer.
+
+  -- document existing key chains
+  require('which-key').register {
+    ['<leader>c'] = { name = '[C]ode', _ = 'which_key_ignore' },
+    ['<leader>d'] = { name = '[D]ocument', _ = 'which_key_ignore' },
+    ['<leader>g'] = { name = '[G]it', _ = 'which_key_ignore' },
+    ['<leader>h'] = { name = 'Git [H]unk', _ = 'which_key_ignore' },
+    ['<leader>r'] = { name = '[R]ename', _ = 'which_key_ignore' },
+    ['<leader>s'] = { name = '[S]earch', _ = 'which_key_ignore' },
+    ['<leader>t'] = { name = '[T]oggle', _ = 'which_key_ignore' },
+    ['<leader>w'] = { name = '[W]orkspace', _ = 'which_key_ignore' },
+  }
+  -- register which-key VISUAL mode
+  -- required for visual <leader>hs (hunk stage) to work
+  require('which-key').register({
+    ['<leader>'] = { name = 'VISUAL <leader>' },
+    ['<leader>h'] = { 'Git [H]unk' },
+  }, { mode = 'v' })
+
+  require('which-key').register {
+    ['<leader>'] = { name = 'VISUAL <leader>' },
+    ['<leader>h'] = { 'Git [H]unk' },
+  }
+
+  -- Enable the following language servers
+  --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
+  --
+  --  Add any additional override configuration in the following tables. They will be passed to
+  --  the `settings` field of the server config. You must look up that documentation yourself.
+  --
+  --  If you want to override the default filetypes that your language server will attach to you can
+  --  define the property 'filetypes' to the map in question.
+  local servers = {
+    -- clangd = {},
+    -- gopls = {},
+    -- pyright = {},
+    -- rust_analyzer = {},
+    -- tsserver = {},
+    -- html = { filetypes = { 'html', 'twig', 'hbs'} },
+    svelte = {},
+    lua_ls = {
+      Lua = {
+        workspace = { checkThirdParty = false },
+        telemetry = { enable = false },
+        -- NOTE: toggle below to ignore Lua_LS's noisy `missing-fields` warnings
+        diagnostics = { disable = { 'missing-fields' } },
+      },
+    },
+  }
+
+  -- mason-lspconfig requires that these setup functions are called in this order
+  -- before setting up the servers.
+  require('mason').setup()
+  require('mason-lspconfig').setup()
+
+  -- nvim-cmp supports additional completion capabilities, so broadcast that to servers
+  local capabilities = vim.lsp.protocol.make_client_capabilities()
+  capabilities = require('cmp_nvim_lsp').default_capabilities(capabilities)
+
+  -- Ensure the servers above are installed
+  local mason_lspconfig = require 'mason-lspconfig'
+
+  mason_lspconfig.setup {
+    ensure_installed = vim.tbl_keys(servers),
+  }
+
+  -- Install non-lsps with mason.
+  require('mason-tool-installer').setup {
+    ensure_installed = {
+      'stylua',
+      'prettier',
+    },
+  }
+
+  mason_lspconfig.setup_handlers {
+    function(server_name)
+      require('lspconfig')[server_name].setup {
+        capabilities = capabilities,
+        on_attach = on_attach,
+        settings = servers[server_name],
+        filetypes = (servers[server_name] or {}).filetypes,
+      }
+    end,
+  }
+
+  require('lspconfig').gdscript.setup {
+    capabilities = capabilities,
+    on_attach = on_attach,
+    -- NOTE: for whatever reason, vim.lsp.rpc.connect() doesn't work with gdscript
+    cmd = { 'ncat', 'localhost', '6005' },
+    filetypes = { 'gd', 'gdscript', 'gdscript3' },
+    root_dir = function(fname)
+      return require('lspconfig').util.root_pattern('project.godot', '.git')(fname) or vim.fn.getcwd()
+    end,
+  }
+end
+
 -- Godot setup function
 local setup_godot_dap = function()
   local dap = require 'dap'
@@ -88,6 +293,79 @@ local setup_godot_dap = function()
       project = '${workspaceFolder}',
       request = 'launch',
       type = 'godot',
+    },
+  }
+end
+
+local configure_treesitter = function()
+  -- [[ Configure Treesitter ]]
+  -- See `:help nvim-treesitter`
+  -- Defer Treesitter setup after first render to improve startup time of 'nvim {filename}'
+  require('nvim-treesitter.install').prefer_git = true
+  require('nvim-treesitter.configs').setup {
+    -- Add languages to be installed here that you want installed for treesitter
+    ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash' },
+
+    -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
+    auto_install = false,
+    ignore_install = {},
+    sync_install = false,
+    modules = {},
+
+    highlight = { enable = true },
+    indent = { enable = true },
+    incremental_selection = {
+      enable = true,
+      keymaps = {
+        init_selection = '<c-space>',
+        node_incremental = '<c-space>',
+        scope_incremental = '<c-s>',
+        node_decremental = '<M-space>',
+      },
+    },
+    textobjects = {
+      select = {
+        enable = true,
+        lookahead = true, -- Automatically jump forward to textobj, similar to targets.vim
+        keymaps = {
+          -- You can use the capture groups defined in textobjects.scm
+          ['aa'] = '@parameter.outer',
+          ['ia'] = '@parameter.inner',
+          ['af'] = '@function.outer',
+          ['if'] = '@function.inner',
+          ['ac'] = '@class.outer',
+          ['ic'] = '@class.inner',
+        },
+      },
+      move = {
+        enable = true,
+        set_jumps = true, -- whether to set jumps in the jumplist
+        goto_next_start = {
+          [']m'] = '@function.outer',
+          [']]'] = '@class.outer',
+        },
+        goto_next_end = {
+          [']M'] = '@function.outer',
+          [']['] = '@class.outer',
+        },
+        goto_previous_start = {
+          ['[m'] = '@function.outer',
+          ['[['] = '@class.outer',
+        },
+        goto_previous_end = {
+          ['[M'] = '@function.outer',
+          ['[]'] = '@class.outer',
+        },
+      },
+      swap = {
+        enable = true,
+        swap_next = {
+          ['<leader>a'] = '@parameter.inner',
+        },
+        swap_previous = {
+          ['<leader>A'] = '@parameter.inner',
+        },
+      },
     },
   }
 end
@@ -166,11 +444,24 @@ require('lazy').setup({
   -- NOTE: First, some plugins that don't require any configuration
 
   -- Git related plugins
-  'tpope/vim-fugitive',
-  'tpope/vim-rhubarb',
+  {
+    'tpope/vim-fugitive',
+    event = 'VeryLazy',
+  },
+
+  {
+    'tpope/vim-rhubarb',
+    event = 'VeryLazy',
+    dependencies = {
+      'tpope/vim-fugitive',
+    },
+  },
 
   -- Detect tabstop and shiftwidth automatically
-  'tpope/vim-sleuth',
+  {
+    'tpope/vim-sleuth',
+    event = 'VeryLazy',
+  },
 
   -- NOTE: This is where your plugins related to LSP can be installed.
   --  The configuration is done below. Search for lspconfig to find it below.
@@ -181,6 +472,7 @@ require('lazy').setup({
       -- Automatically install LSPs to stdpath for neovim
       { 'williamboman/mason.nvim', config = true },
       'williamboman/mason-lspconfig.nvim',
+      'folke/which-key.nvim',
 
       -- Useful status updates for LSP
       -- NOTE: `opts = {}` is the same as calling `require('fidget').setup({})`
@@ -189,6 +481,8 @@ require('lazy').setup({
       -- Additional lua configuration, makes nvim stuff amazing!
       'folke/neodev.nvim',
     },
+    config = configure_lsp,
+    event = { 'VeryLazy' },
   },
 
   {
@@ -339,15 +633,33 @@ require('lazy').setup({
   {
     'folke/which-key.nvim',
     opts = {},
+    event = 'UIEnter',
   },
 
-  'WhoIsSethDaniel/mason-tool-installer.nvim',
+  {
+    'WhoIsSethDaniel/mason-tool-installer.nvim',
+    event = 'VeryLazy',
+    dependencies = { 'williamboman/mason.nvim' },
+  },
 
   -- Works in conjunction with LSP for faster formatting
   {
     'stevearc/conform.nvim',
     event = { 'BufWritePre' },
     cmd = { 'ConformInfo' },
+    keys = {
+      -- Autoformat with space-f
+      {
+        '<leader>f',
+        function()
+          require('conform').format {
+            async = true,
+            lsp_fallback = true,
+          }
+        end,
+        desc = '[F]ormat code',
+      },
+    },
     opts = {
       formatters_by_ft = {
         lua = { 'stylua', 'trim_whitespace' },
@@ -402,7 +714,7 @@ require('lazy').setup({
     keys = {
       { '<leader>st', '<cmd>TodoTelescope cwd=%:p:h<cr>', desc = '[S]earch [T]odo' },
     },
-    lazy = false,
+    event = 'BufRead',
   },
 
   -- Sets fontsizes on GUIs
@@ -472,6 +784,7 @@ require('lazy').setup({
   {
     -- Adds git related signs to the gutter, as well as utilities for managing changes
     'lewis6991/gitsigns.nvim',
+    event = 'VimEnter',
     opts = {
       -- See `:help gitsigns.txt`
       signs = {
@@ -558,6 +871,7 @@ require('lazy').setup({
 
   {
     'stevearc/dressing.nvim',
+    event = 'UIEnter',
     opts = {},
   },
 
@@ -577,6 +891,7 @@ require('lazy').setup({
   -- Chosen in favor of persistence.nvim
   {
     'olimorris/persisted.nvim',
+    event = { 'VeryLazy' },
     dependencies = { 'nvim-telescope/telescope.nvim' },
     config = function()
       require('persisted').setup {
@@ -602,7 +917,6 @@ require('lazy').setup({
       -- { '<leader>ts', [[<cmd>lua require("persistence").start()<cr>]], desc = '[S]tart Session Management' },
       { '<leader>ss', [[<cmd>Telescope persisted<cr>]], desc = '[S]essions' },
     },
-    lazy = false,
   },
 
   {
@@ -734,15 +1048,12 @@ require('lazy').setup({
   },
   {
     'ziontee113/icon-picker.nvim',
-    config = function()
-      require('icon-picker').setup { disable_legacy_commands = true }
-
-      local opts = { noremap = true, silent = true }
-
-      vim.keymap.set('n', '<Leader><Leader>i', '<cmd>IconPickerNormal<cr>', opts)
-      vim.keymap.set('n', '<Leader><Leader>y', '<cmd>IconPickerYank<cr>', opts) --> Yank the selected icon into register
-      vim.keymap.set('i', '<C-i>', '<cmd>IconPickerInsert<cr>', opts)
-    end,
+    opt = { disable_legacy_commands = true },
+    keys = {
+      { '<Leader><Leader>i', '<cmd>IconPickerNormal<cr>', mode = 'n', desc = 'Open [I]con Picker', silent = true },
+      { '<Leader><Leader>y', '<cmd>IconPickerYank<cr>', mode = 'n', desc = '[Y]ank from Icon Picker', silent = true }, --> Yank the selected icon into register
+      { '<C-i>', '<cmd>IconPickerInsert<cr>', mode = 'i', desc = 'Open [I]con Picker', silent = true },
+    },
   },
   {
     'windwp/nvim-autopairs',
@@ -782,6 +1093,7 @@ require('lazy').setup({
     -- Set lualine as statusline
     'nvim-lualine/lualine.nvim',
     -- See `:help lualine.txt`
+    event = 'VimEnter',
     opts = {
       options = {
         component_separators = '|',
@@ -802,11 +1114,13 @@ require('lazy').setup({
     -- See `:help ibl`
     main = 'ibl',
     opts = {},
+    event = 'VimEnter',
   },
 
   -- Fuzzy Finder (files, lsp, etc)
   {
     'nvim-telescope/telescope.nvim',
+    event = { 'UIEnter', 'VeryLazy' },
     branch = '0.1.x',
     dependencies = {
       'nvim-lua/plenary.nvim',
@@ -818,6 +1132,7 @@ require('lazy').setup({
         -- NOTE: If you are having trouble with this installation,
         --       refer to the README for telescope-fzf-native for more instructions.
         build = 'make',
+        event = 'VeryLazy',
         cond = function()
           return vim.fn.executable 'make' == 1
         end,
@@ -833,11 +1148,17 @@ require('lazy').setup({
         },
       },
     },
+
+    config = function(self, opts)
+      require('telescope').setup(opts) -- might be an unneeded line? dunno if opts already calls this
+      configure_telescope()
+    end,
   },
 
   {
     'nvim-telescope/telescope-ui-select.nvim',
     dependencies = { 'nvim-telescope/telescope.nvim' },
+    event = { 'VeryLazy', 'VimEnter' },
   },
 
   {
@@ -849,10 +1170,12 @@ require('lazy').setup({
       'nvim-treesitter/nvim-treesitter-textobjects',
     },
     build = ':TSUpdate',
+    config = configure_treesitter,
   },
 
   {
     'ggandor/leap.nvim',
+    event = 'VeryLazy',
     dependencies = {
       'tpope/vim-repeat',
     },
@@ -871,10 +1194,10 @@ require('lazy').setup({
 
   {
     'numToStr/Comment.nvim',
+    event = 'VeryLazy',
     opts = {
       -- add any options here
     },
-    lazy = false,
   },
 
   {
@@ -1012,14 +1335,6 @@ vim.keymap.set('n', ']n', vim.diagnostic.goto_next, { desc = 'Go to next diagnos
 vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Open floating diagnostic message' })
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostics list' })
 
--- Autoformat with space-f
-vim.keymap.set('n', '<leader>f', function()
-  require('conform').format {
-    async = true,
-    lsp_fallback = true,
-  }
-end, { desc = '[F]ormat code' })
-
 -- Comment with Ctrl-/
 vim.keymap.set('n', '<C-/>', '<Plug>(comment_toggle_linewise_current)', { desc = '[Ctrl-/] Comment toggle linewise' })
 vim.keymap.set('x', '<C-/>', '<Plug>(comment_toggle_linewise_visual)', { desc = '[Ctrl-/] Comment toggle linewise' })
@@ -1036,282 +1351,6 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   group = highlight_group,
   pattern = '*',
 })
-
--- [[ Configure Telescope ]]
--- See `:help telescope` and `:help telescope.setup()`
-require('telescope').setup {
-  defaults = {
-    mappings = {
-      i = {
-        ['<C-u>'] = false,
-        ['<C-d>'] = false,
-      },
-    },
-  },
-}
-
--- Enable telescope fzf native, if installed
-pcall(require('telescope').load_extension, 'fzf')
-
--- Telescope live_grep in git root
--- Function to find the git root directory based on the current buffer's path
-local function find_git_root()
-  -- Use the current buffer's path as the starting point for the git search
-  local current_file = vim.api.nvim_buf_get_name(0)
-  local current_dir
-  local cwd = vim.fn.getcwd()
-  -- If the buffer is not associated with a file, return nil
-  if current_file == '' then
-    current_dir = cwd
-  else
-    -- Extract the directory from the current file's path
-    current_dir = vim.fn.fnamemodify(current_file, ':h')
-  end
-
-  -- Find the Git root directory from the current file's path
-  local git_root = vim.fn.systemlist('git -C ' .. vim.fn.escape(current_dir, ' ') .. ' rev-parse --show-toplevel')[1]
-  if vim.v.shell_error ~= 0 then
-    print 'Not a git repository. Searching on current working directory'
-    return cwd
-  end
-  return git_root
-end
-
--- Custom live_grep function to search in git root
-local function live_grep_git_root()
-  local git_root = find_git_root()
-  if git_root then
-    require('telescope.builtin').live_grep {
-      search_dirs = { git_root },
-    }
-  end
-end
-
-vim.api.nvim_create_user_command('LiveGrepGitRoot', live_grep_git_root, {})
-
--- See `:help telescope.builtin`
-vim.keymap.set('n', '<leader>?', require('telescope.builtin').oldfiles, { desc = '[?] Find recently opened files' })
-vim.keymap.set('n', '<leader><space>', require('telescope.builtin').builtin, { desc = '[ ] Select pickers' })
-vim.keymap.set('n', '<leader>/', function()
-  -- You can pass additional configuration to telescope to change theme, layout, etc.
-  require('telescope.builtin').current_buffer_fuzzy_find(require('telescope.themes').get_dropdown {
-    winblend = 10,
-    previewer = true,
-  })
-end, { desc = '[/] Fuzzily search in current buffer' })
-
-local function telescope_live_grep_open_files()
-  require('telescope.builtin').live_grep {
-    grep_open_files = true,
-    enable_preview = true,
-    prompt_title = 'Live Grep in Open Files',
-  }
-end
-
--- This function is basically find_files() combined with git_files(). The appeal of this function over the default find_files() is that you can find files that are not tracked by git. Also, find_files() only finds files in the current directory but this function finds files regardless of your current directory as long as you're in the project directory.
-local find_files_from_project_git_root = function()
-  local function is_git_repo()
-    vim.fn.system 'git rev-parse --is-inside-work-tree'
-    return vim.v.shell_error == 0
-  end
-  local function get_git_root()
-    local dot_git_path = vim.fn.finddir('.git', '.;')
-    return vim.fn.fnamemodify(dot_git_path, ':h')
-  end
-  local opts = {}
-  if is_git_repo() then
-    opts = {
-      cwd = get_git_root(),
-    }
-  end
-  require('telescope.builtin').find_files(opts)
-end
-
-vim.keymap.set('n', '<leader>sk', require('telescope.builtin').keymaps, { desc = '[S]earch [K]eymaps' })
-vim.keymap.set('n', '<leader>s/', telescope_live_grep_open_files, { desc = '[S]earch [/] in Open Files' })
-vim.keymap.set('n', '<leader>gf', require('telescope.builtin').git_files, { desc = 'Search [G]it [F]iles' })
-vim.keymap.set('n', '<leader>sf', find_files_from_project_git_root, { desc = '[S]earch [F]iles' })
-vim.keymap.set('n', '<C-P>', find_files_from_project_git_root, { desc = 'Search Files' })
-vim.keymap.set('n', '<leader>sh', require('telescope.builtin').help_tags, { desc = '[S]earch [H]elp' })
-vim.keymap.set('n', '<leader>sw', require('telescope.builtin').grep_string, { desc = '[S]earch current [W]ord' })
-vim.keymap.set('n', '<leader>sg', require('telescope.builtin').live_grep, { desc = '[S]earch by [G]rep' })
-vim.keymap.set('n', '<leader>sG', ':LiveGrepGitRoot<cr>', { desc = '[S]earch by [G]rep on Git Root' })
-vim.keymap.set('n', '<leader>sd', require('telescope.builtin').diagnostics, { desc = '[S]earch [D]iagnostics' })
-vim.keymap.set('n', '<leader>sr', require('telescope.builtin').resume, { desc = '[S]earch [R]esume' })
-
--- [[ Configure Treesitter ]]
--- See `:help nvim-treesitter`
--- Defer Treesitter setup after first render to improve startup time of 'nvim {filename}'
-vim.defer_fn(function()
-  require('nvim-treesitter.install').prefer_git = true
-  require('nvim-treesitter.configs').setup {
-    -- Add languages to be installed here that you want installed for treesitter
-    ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash' },
-
-    -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
-    auto_install = false,
-    ignore_install = {},
-    sync_install = false,
-    modules = {},
-
-    highlight = { enable = true },
-    indent = { enable = true },
-    incremental_selection = {
-      enable = true,
-      keymaps = {
-        init_selection = '<c-space>',
-        node_incremental = '<c-space>',
-        scope_incremental = '<c-s>',
-        node_decremental = '<M-space>',
-      },
-    },
-    textobjects = {
-      select = {
-        enable = true,
-        lookahead = true, -- Automatically jump forward to textobj, similar to targets.vim
-        keymaps = {
-          -- You can use the capture groups defined in textobjects.scm
-          ['aa'] = '@parameter.outer',
-          ['ia'] = '@parameter.inner',
-          ['af'] = '@function.outer',
-          ['if'] = '@function.inner',
-          ['ac'] = '@class.outer',
-          ['ic'] = '@class.inner',
-        },
-      },
-      move = {
-        enable = true,
-        set_jumps = true, -- whether to set jumps in the jumplist
-        goto_next_start = {
-          [']m'] = '@function.outer',
-          [']]'] = '@class.outer',
-        },
-        goto_next_end = {
-          [']M'] = '@function.outer',
-          [']['] = '@class.outer',
-        },
-        goto_previous_start = {
-          ['[m'] = '@function.outer',
-          ['[['] = '@class.outer',
-        },
-        goto_previous_end = {
-          ['[M'] = '@function.outer',
-          ['[]'] = '@class.outer',
-        },
-      },
-      swap = {
-        enable = true,
-        swap_next = {
-          ['<leader>a'] = '@parameter.inner',
-        },
-        swap_previous = {
-          ['<leader>A'] = '@parameter.inner',
-        },
-      },
-    },
-  }
-end, 0)
-
--- [[ Configure LSP ]]
---  This function gets run when an LSP connects to a particular buffer.
-
--- document existing key chains
-require('which-key').register {
-  ['<leader>c'] = { name = '[C]ode', _ = 'which_key_ignore' },
-  ['<leader>d'] = { name = '[D]ocument', _ = 'which_key_ignore' },
-  ['<leader>g'] = { name = '[G]it', _ = 'which_key_ignore' },
-  ['<leader>h'] = { name = 'Git [H]unk', _ = 'which_key_ignore' },
-  ['<leader>r'] = { name = '[R]ename', _ = 'which_key_ignore' },
-  ['<leader>s'] = { name = '[S]earch', _ = 'which_key_ignore' },
-  ['<leader>t'] = { name = '[T]oggle', _ = 'which_key_ignore' },
-  ['<leader>w'] = { name = '[W]orkspace', _ = 'which_key_ignore' },
-}
--- register which-key VISUAL mode
--- required for visual <leader>hs (hunk stage) to work
-require('which-key').register({
-  ['<leader>'] = { name = 'VISUAL <leader>' },
-  ['<leader>h'] = { 'Git [H]unk' },
-}, { mode = 'v' })
-
-require('which-key').register {
-  ['<leader>'] = { name = 'VISUAL <leader>' },
-  ['<leader>h'] = { 'Git [H]unk' },
-}
-
--- mason-lspconfig requires that these setup functions are called in this order
--- before setting up the servers.
-require('mason').setup()
-require('mason-lspconfig').setup()
-
--- Enable the following language servers
---  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
---
---  Add any additional override configuration in the following tables. They will be passed to
---  the `settings` field of the server config. You must look up that documentation yourself.
---
---  If you want to override the default filetypes that your language server will attach to you can
---  define the property 'filetypes' to the map in question.
-local servers = {
-  -- clangd = {},
-  -- gopls = {},
-  -- pyright = {},
-  -- rust_analyzer = {},
-  -- tsserver = {},
-  -- html = { filetypes = { 'html', 'twig', 'hbs'} },
-  svelte = {},
-  lua_ls = {
-    Lua = {
-      workspace = { checkThirdParty = false },
-      telemetry = { enable = false },
-      -- NOTE: toggle below to ignore Lua_LS's noisy `missing-fields` warnings
-      diagnostics = { disable = { 'missing-fields' } },
-    },
-  },
-}
-
--- Setup neovim lua configuration
-require('neodev').setup()
-
--- nvim-cmp supports additional completion capabilities, so broadcast that to servers
-local capabilities = vim.lsp.protocol.make_client_capabilities()
-capabilities = require('cmp_nvim_lsp').default_capabilities(capabilities)
-
--- Ensure the servers above are installed
-local mason_lspconfig = require 'mason-lspconfig'
-
-mason_lspconfig.setup {
-  ensure_installed = vim.tbl_keys(servers),
-}
-
--- Install non-lsps with mason.
-require('mason-tool-installer').setup {
-  ensure_installed = {
-    'stylua',
-    'prettier',
-  },
-}
-
-mason_lspconfig.setup_handlers {
-  function(server_name)
-    require('lspconfig')[server_name].setup {
-      capabilities = capabilities,
-      on_attach = on_attach,
-      settings = servers[server_name],
-      filetypes = (servers[server_name] or {}).filetypes,
-    }
-  end,
-}
-
-require('lspconfig').gdscript.setup {
-  capabilities = capabilities,
-  on_attach = on_attach,
-  -- NOTE: for whatever reason, vim.lsp.rpc.connect() doesn't work with gdscript
-  cmd = { 'ncat', 'localhost', '6005' },
-  filetypes = { 'gd', 'gdscript', 'gdscript3' },
-  root_dir = function(fname)
-    return require('lspconfig').util.root_pattern('project.godot', '.git')(fname) or vim.fn.getcwd()
-  end,
-}
 
 -- autoruns on BufEnter
 -- create autocommand to set tabs
