@@ -1,5 +1,7 @@
+-- TODO: put treesitter into lazy config
 -- FIXME: crashing on q! sometimes. it's not the sessions...
 -- TODO: Dashboard workspaces don't load
+-- TODO: turn off diagnostics with a hydra toggle
 -- TODO: add symbols tree
 -- See `:help mapleader`
 --  NOTE: Must happen before plugins are required (otherwise wrong leader will be used)
@@ -90,6 +92,70 @@ local setup_godot_dap = function()
   }
 end
 
+local configure_cmp = function()
+  -- [[ Configure nvim-cmp ]]
+  -- See `:help cmp`
+  local cmp = require 'cmp'
+  local luasnip = require 'luasnip'
+  require('luasnip.loaders.from_vscode').lazy_load()
+  luasnip.config.setup {}
+
+  local has_words_before = function()
+    if vim.api.nvim_buf_get_option(0, 'buftype') == 'prompt' then
+      return false
+    end
+    local line, col = unpack(vim.api.nvim_win_get_cursor(0))
+    return col ~= 0 and vim.api.nvim_buf_get_text(0, line - 1, 0, line - 1, col, {})[1]:match '^%s*$' == nil
+  end
+
+  cmp.setup {
+    snippet = {
+      expand = function(args)
+        luasnip.lsp_expand(args.body)
+      end,
+    },
+    completion = {
+      completeopt = 'menu,menuone,noinsert',
+    },
+    mapping = cmp.mapping.preset.insert {
+      ['<C-n>'] = cmp.mapping.select_next_item(),
+      ['<C-p>'] = cmp.mapping.select_prev_item(),
+      ['<C-b>'] = cmp.mapping.scroll_docs(-4),
+      ['<C-f>'] = cmp.mapping.scroll_docs(4),
+      ['<C-Space>'] = cmp.mapping.complete {},
+      ['<CR>'] = cmp.mapping.confirm {
+        behavior = cmp.ConfirmBehavior.Replace,
+        select = true,
+      },
+      ['<Tab>'] = cmp.mapping(function(fallback)
+        if cmp.visible() and has_words_before() then
+          -- if cmp.visible() then
+          cmp.select_next_item()
+        elseif luasnip.expand_or_locally_jumpable() then
+          luasnip.expand_or_jump()
+        else
+          fallback()
+        end
+      end, { 'i', 's' }),
+      ['<S-Tab>'] = cmp.mapping(function(fallback)
+        if cmp.visible() then
+          cmp.select_prev_item()
+        elseif luasnip.locally_jumpable(-1) then
+          luasnip.jump(-1)
+        else
+          fallback()
+        end
+      end, { 'i', 's' }),
+    },
+    sources = {
+      { name = 'copilot' },
+      { name = 'nvim_lsp' },
+      { name = 'luasnip' },
+      { name = 'path' },
+    },
+  }
+end
+
 -- [[ Configure plugins ]]
 -- NOTE: Here is where you install your plugins.
 --  You can configure plugins using the `config` key.
@@ -141,13 +207,20 @@ require('lazy').setup({
       -- Adds a number of user-friendly snippets
       'rafamadriz/friendly-snippets',
     },
+    config = configure_cmp,
   },
 
   {
     'mfussenegger/nvim-dap',
     ft = { 'gdscript' },
     keys = {
-      { '<leader>db', function() require('dap').toggle_breakpoint() end, desc = 'DAP: Toggle [B]reakpoint' },
+      {
+        '<leader>db',
+        function()
+          require('dap').toggle_breakpoint()
+        end,
+        desc = 'DAP: Toggle [B]reakpoint',
+      },
       {
         '<leader>df',
         function()
@@ -355,7 +428,7 @@ require('lazy').setup({
           week_header = {
             enable = true,
           },
-          project = { enable = true, limit = 5 },
+          project = { enable = true, limit = 5, action = 'Telescope find_files' },
           mru = { limit = 5 },
           shortcut = {
             { desc = '󰊳 Update', group = '@property', action = 'Lazy update', key = 'u' },
@@ -676,6 +749,17 @@ require('lazy').setup({
     event = 'InsertEnter',
     opts = {}, -- this is equalent to setup({}) function
   },
+
+  {
+    'echasnovski/mini.nvim',
+    version = '*',
+    config = function()
+      require('mini.animate').setup()
+    end,
+    -- enable only if neovide isn't available
+    enabled = not vim.g.neovide,
+  },
+
   {
     -- Theme inspired by Atom
     'olimorris/onedarkpro.nvim',
@@ -700,11 +784,13 @@ require('lazy').setup({
     -- See `:help lualine.txt`
     opts = {
       options = {
-        icons_enabled = false,
-        theme = 'tokyonight-moon',
-        -- theme = 'onedark',
         component_separators = '|',
-        section_separators = '',
+        section_separators = { left = '', right = '' },
+        icons_enabled = true,
+        theme = 'tokyonight',
+        -- theme = 'onedark',
+        -- component_separators = '|',
+        -- section_separators = '',
       },
     },
   },
@@ -1225,68 +1311,6 @@ require('lspconfig').gdscript.setup {
   root_dir = function(fname)
     return require('lspconfig').util.root_pattern('project.godot', '.git')(fname) or vim.fn.getcwd()
   end,
-}
-
--- [[ Configure nvim-cmp ]]
--- See `:help cmp`
-local cmp = require 'cmp'
-local luasnip = require 'luasnip'
-require('luasnip.loaders.from_vscode').lazy_load()
-luasnip.config.setup {}
-
-local has_words_before = function()
-  if vim.api.nvim_buf_get_option(0, 'buftype') == 'prompt' then
-    return false
-  end
-  local line, col = unpack(vim.api.nvim_win_get_cursor(0))
-  return col ~= 0 and vim.api.nvim_buf_get_text(0, line - 1, 0, line - 1, col, {})[1]:match '^%s*$' == nil
-end
-
-cmp.setup {
-  snippet = {
-    expand = function(args)
-      luasnip.lsp_expand(args.body)
-    end,
-  },
-  completion = {
-    completeopt = 'menu,menuone,noinsert',
-  },
-  mapping = cmp.mapping.preset.insert {
-    ['<C-n>'] = cmp.mapping.select_next_item(),
-    ['<C-p>'] = cmp.mapping.select_prev_item(),
-    ['<C-b>'] = cmp.mapping.scroll_docs(-4),
-    ['<C-f>'] = cmp.mapping.scroll_docs(4),
-    ['<C-Space>'] = cmp.mapping.complete {},
-    ['<CR>'] = cmp.mapping.confirm {
-      behavior = cmp.ConfirmBehavior.Replace,
-      select = true,
-    },
-    ['<Tab>'] = cmp.mapping(function(fallback)
-      if cmp.visible() and has_words_before() then
-        -- if cmp.visible() then
-        cmp.select_next_item()
-      elseif luasnip.expand_or_locally_jumpable() then
-        luasnip.expand_or_jump()
-      else
-        fallback()
-      end
-    end, { 'i', 's' }),
-    ['<S-Tab>'] = cmp.mapping(function(fallback)
-      if cmp.visible() then
-        cmp.select_prev_item()
-      elseif luasnip.locally_jumpable(-1) then
-        luasnip.jump(-1)
-      else
-        fallback()
-      end
-    end, { 'i', 's' }),
-  },
-  sources = {
-    { name = 'copilot' },
-    { name = 'nvim_lsp' },
-    { name = 'luasnip' },
-    { name = 'path' },
-  },
 }
 
 -- autoruns on BufEnter
