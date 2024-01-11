@@ -1,6 +1,5 @@
--- TODO: put treesitter into lazy config
--- FIXME: crashing on q! sometimes. it's not the sessions...
--- TODO: Dashboard workspaces don't load
+-- FIXME: crashing on q! sometimes. it's not the sessions... probably ShaDa file.
+-- TODO: Dashboard projects don't load. consider a diff session manager
 -- TODO: turn off diagnostics with a hydra toggle
 -- TODO: add symbols tree
 -- See `:help mapleader`
@@ -179,7 +178,9 @@ local configure_lsp = function()
   -- [[ Configure LSP ]]
   --  This function gets run when an LSP connects to a particular buffer.
 
+  require('neodev').setup()
   -- document existing key chains
+
   require('which-key').register {
     ['<leader>c'] = { name = '[C]ode', _ = 'which_key_ignore' },
     ['<leader>d'] = { name = '[D]ocument', _ = 'which_key_ignore' },
