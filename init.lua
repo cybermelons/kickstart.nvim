@@ -619,14 +619,6 @@ require('lazy').setup({
     },
     config = function()
       setup_godot_dap()
-      -- require('nvim-dap').setup()
-      -- require('lspconfig').gdscript.setup {
-      --   on_attach = on_attach,
-      --   flags = {
-      --     debounce_text_changes = 150,
-      --   },
-      --   filetypes = { 'gd', 'gdscript', 'gdscript3' },
-      -- }
     end,
   },
 
@@ -1049,7 +1041,7 @@ require('lazy').setup({
   },
   {
     'ziontee113/icon-picker.nvim',
-    opt = { disable_legacy_commands = true },
+    opts = { disable_legacy_commands = true },
     keys = {
       { '<Leader><Leader>i', '<cmd>IconPickerNormal<cr>', mode = 'n', desc = 'Open [I]con Picker', silent = true },
       { '<Leader><Leader>y', '<cmd>IconPickerYank<cr>', mode = 'n', desc = '[Y]ank from Icon Picker', silent = true }, --> Yank the selected icon into register
