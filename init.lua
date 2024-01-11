@@ -1097,6 +1097,13 @@ require('lazy').setup({
         -- component_separators = '|',
         -- section_separators = '',
       },
+      extensions = {
+        'neo-tree',
+        'nvim-dap-ui',
+        'mason',
+        'lazy',
+        'fugitive',
+      },
     },
   },
 
