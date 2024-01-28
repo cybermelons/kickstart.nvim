@@ -2,6 +2,7 @@
 -- TODO: Dashboard projects don't load. consider a diff session manager
 -- TODO: turn off diagnostics with a hydra toggle
 -- TODO: add symbols tree
+-- TODO: add bindings to show Norg as a window while i hold a key down
 -- See `:help mapleader`
 --  NOTE: Must happen before plugins are required (otherwise wrong leader will be used)
 vim.g.mapleader = ' '
@@ -212,12 +213,23 @@ local configure_lsp = function()
   --  If you want to override the default filetypes that your language server will attach to you can
   --  define the property 'filetypes' to the map in question.
   local servers = {
-    -- clangd = {},
+    clangd = {},
     -- gopls = {},
     -- pyright = {},
     -- rust_analyzer = {},
     -- tsserver = {},
+    pylsp = {},
     -- html = { filetypes = { 'html', 'twig', 'hbs'} },
+    -- csharp_ls = {
+    --   root_dir = function(fname)
+    --     return require('lspconfig').util.root_pattern('.godot','.git')(fname) or vim.fn.getcwd()
+    --   end,
+    -- },
+    omnisharp = {
+      -- root_dir = function(fname)
+      --   return require('lspconfig').util.root_pattern('.godot', '.git')(fname) or vim.fn.getcwd()
+      -- end,
+    },
     svelte = {},
     lua_ls = {
       Lua = {
@@ -260,6 +272,7 @@ local configure_lsp = function()
         on_attach = on_attach,
         settings = servers[server_name],
         filetypes = (servers[server_name] or {}).filetypes,
+        -- root_dir = (servers[server_name] or {}).root_dir,
       }
     end,
   }
@@ -274,6 +287,8 @@ local configure_lsp = function()
       return require('lspconfig').util.root_pattern('project.godot', '.git')(fname) or vim.fn.getcwd()
     end,
   }
+
+
 end
 
 -- Godot setup function
@@ -720,7 +735,7 @@ require('lazy').setup({
       { '<C-0>', '<cmd>ResetFontSize<cr>', desc = 'GUI: Reset font size' },
     },
     config = function()
-      vim.cmd 'SetFont CaskaydiaCove Nerd Font:h14'
+      vim.cmd 'SetFont CaskaydiaCove Nerd Font:h12'
     end,
   },
 
@@ -771,9 +786,21 @@ require('lazy').setup({
 
       vim.keymap.set('n', '<leader>H', '<cmd>Dashboard<cr>', { desc = '[H]ome' }) --
     end,
+    enabled = false, -- use alpha-nvim instead
     dependencies = { { 'nvim-tree/nvim-web-devicons' } },
   },
+  {
+    'goolord/alpha-nvim',
+    dependencies = { 'nvim-tree/nvim-web-devicons' },
+    config = function()
+      -- TODO: configure this dashboard
+      local dashboard = require('alpha.themes.startify').config
+      -- dashboard.section.
+      require('alpha').setup(dashboard)
 
+      vim.keymap.set('n', '<leader>H', '<cmd>Alpha<cr>', { desc = '[H]ome' }) --
+    end,
+  },
   {
     -- Adds git related signs to the gutter, as well as utilities for managing changes
     'lewis6991/gitsigns.nvim',
@@ -1205,6 +1232,7 @@ require('lazy').setup({
     build = ':Neorg sync-parsers',
     ft = 'norg',
     dependencies = { 'nvim-lua/plenary.nvim' },
+    cmd = { 'Neorg', 'NeorgOpen', 'NeorgNew' },
     keys = {
       {
         '<leader>N',
@@ -1340,6 +1368,13 @@ vim.keymap.set('n', '<C-/>', '<Plug>(comment_toggle_linewise_current)', { desc =
 vim.keymap.set('x', '<C-/>', '<Plug>(comment_toggle_linewise_visual)', { desc = '[Ctrl-/] Comment toggle linewise' })
 vim.keymap.set('n', ';', ':', { desc = ':Command mode' })
 
+-- Window management Hotkeys
+-- <Control-HJKL> moves windows
+vim.keymap.set('n', '<C-j>', '<C-w>j', { desc = 'Move to window below' })
+vim.keymap.set('n', '<C-k>', '<C-w>k', { desc = 'Move to window above' })
+vim.keymap.set('n', '<C-h>', '<C-w>h', { desc = 'Move to window left' })
+vim.keymap.set('n', '<C-l>', '<C-w>l', { desc = 'Move to window right' })
+
 -- [[ Highlight on yank ]]
 -- See `:help vim.highlight.on_yank()`
 local highlight_group = vim.api.nvim_create_augroup('YankHighlight', { clear = true })
@@ -1364,10 +1399,6 @@ vim.api.nvim_create_autocmd({ 'BufEnter' }, {
   end,
 })
 
--- vim.cmd.autocmd('BufEnter', '*.gd', function()
---   vim.bo.tabstop = 4
---   vim.bo.shiftwidth = 4
--- end)
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
