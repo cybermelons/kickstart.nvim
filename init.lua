@@ -287,8 +287,6 @@ local configure_lsp = function()
       return require('lspconfig').util.root_pattern('project.godot', '.git')(fname) or vim.fn.getcwd()
     end,
   }
-
-
 end
 
 -- Godot setup function
@@ -499,6 +497,14 @@ require('lazy').setup({
     },
     config = configure_lsp,
     event = { 'VeryLazy' },
+  },
+
+  {
+    'folke/zen-mode.nvim',
+    event = 'VeryLazy',
+      keys = {
+        { "<leader>z", function() require("zen-mode").toggle({ }) end, desc = "Toggle [z]en-mode" },
+      },
   },
 
   {
@@ -1398,7 +1404,6 @@ vim.api.nvim_create_autocmd({ 'BufEnter' }, {
     vim.bo.shiftwidth = 4
   end,
 })
-
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
