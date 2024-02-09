@@ -38,6 +38,39 @@ local configure_telescope = function()
     },
   }
 
+  local function setup_search_and_replace()
+    local telescope = require 'telescope'
+    local actions = require 'telescope.actions'
+    local action_state = require 'telescope.actions.state'
+
+    telescope.setup {
+      defaults = {
+        mappings = {
+          i = {
+            ['<C-r>'] = function(prompt_bufnr)
+              local current_text = action_state.get_current_line()
+              local search_text = vim.fn.input('Search for: ', current_text)
+              local replace_text = vim.fn.input 'Replace with: '
+              if search_text ~= '' then
+                require('telescope.builtin').grep_string { search = search_text }
+                vim.schedule(function()
+                  local confirm = vim.fn.input 'Replace in all files? (y/n): '
+                  if confirm:lower() == 'y' then
+                    vim.cmd('%s/' .. search_text .. '/' .. replace_text .. '/g')
+                    print('Replaced "' .. search_text .. '" with "' .. replace_text .. '" in all files.')
+                  end
+                end)
+              end
+            end,
+          },
+        },
+      },
+    }
+
+    -- To invoke this search and replace functionality, you may bind it to a hotkey or command, like so:
+    vim.api.nvim_set_keymap('n', '<Leader>sr', ':Telescope live_grep<CR>', { noremap = true, silent = true })
+  end
+
   -- Enable telescope fzf native, if installed
   pcall(require('telescope').load_extension, 'fzf')
 
@@ -490,7 +523,17 @@ require('lazy').setup({
 
       -- Useful status updates for LSP
       -- NOTE: `opts = {}` is the same as calling `require('fidget').setup({})`
-      { 'j-hui/fidget.nvim', opts = {} },
+      {
+        'j-hui/fidget.nvim',
+        opts = {
+          -- top right
+          notification = {
+            window = {
+              align = 'top',
+            },
+          },
+        },
+      },
 
       -- Additional lua configuration, makes nvim stuff amazing!
       'folke/neodev.nvim',
@@ -502,9 +545,15 @@ require('lazy').setup({
   {
     'folke/zen-mode.nvim',
     event = 'VeryLazy',
-      keys = {
-        { "<leader>z", function() require("zen-mode").toggle({ }) end, desc = "Toggle [z]en-mode" },
+    keys = {
+      {
+        '<leader>z',
+        function()
+          require('zen-mode').toggle {}
+        end,
+        desc = 'Toggle [z]en-mode',
       },
+    },
   },
 
   {
@@ -1407,3 +1456,5 @@ vim.api.nvim_create_autocmd({ 'BufEnter' }, {
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
+--
+-- A lua function that adds a luasnip snippet called "sets to the cmp engine:
