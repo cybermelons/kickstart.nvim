@@ -24,6 +24,91 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
+local add_statemachine_snippet = function()
+  local ls = require 'luasnip'
+  local s = ls.snippet
+  local t = ls.text_node
+  -- local i = ls.insert_node
+  -- local fmt = require('luasnip.extras.fmt').fmt
+
+  ls.add_snippets('gdscript', {
+    s('state', {
+      t {
+        'class_name State',
+        'extends Node',
+
+        '@export',
+        'var root: RootNode',
+        '',
+        '@export',
+        '@onready',
+        'var state: State = $%InitialState', -- Add a Node named InitialState in the editor, right click, give it a "Unique Node Name"
+        '',
+        '# Initialize the state machine by giving each child state a reference to the',
+        '# parent object it belongs to and enter the default starting_state.',
+        [[
+func enter() -> void:
+	pass
+
+func exit() -> void:
+	pass
+]],
+        '',
+        '',
+        'func process_physics(delta: float) -> void:',
+        '\tpass',
+        '',
+        'func process(delta: float) -> void:',
+        '\tpass',
+        '',
+      },
+    }),
+
+    s('statemachine', {
+      t {
+        [[
+        class_name StateMachine
+        extends Node
+
+        @export
+        var state: State:
+          set(value):
+            state = value
+            _change_state(value)
+
+        # Initialize the state machine by giving each child state a reference to the
+        # parent object it belongs to and enter the default starting_state.
+        func init(parent: RootNode) -> void:
+          for child in get_children():
+            child.parent = parent
+
+          # Initialize to the default state
+          if (state):
+            state.enter()
+
+        # Change to the new state by first calling any exit logic on the current state.
+        func _change_state(new_state: State) -> void:
+          if state:
+            state.exit()
+
+          new_state.enter()
+
+
+        func process_physics(delta: float) -> void:
+          var new_state = state.process_physics(delta)
+          if new_state:
+            state = new_state
+
+        func process(delta: float) -> void:
+          var new_state = state.process_physics(delta)
+          if new_state:
+            state = new_state
+        ]],
+      },
+    }),
+  })
+end
+
 local configure_telescope = function()
   -- [[ Configure Telescope ]]
   -- See `:help telescope` and `:help telescope.setup()`
@@ -479,6 +564,9 @@ local configure_cmp = function()
       { name = 'path' },
     },
   }
+
+  -- Custom snippets in luasnip here
+  add_statemachine_snippet()
 end
 
 -- [[ Configure plugins ]]
@@ -1120,6 +1208,7 @@ require('lazy').setup({
         desc = 'Show [N]eoTree on [g]it',
       },
     },
+    event = 'VeryLazy',
   },
   {
     'ziontee113/icon-picker.nvim',
@@ -1294,6 +1383,11 @@ require('lazy').setup({
         '<cmd>Neorg journal today<cr>',
         desc = '[N]otes',
       },
+      {
+        '<leader>nt',
+        '<cmd>Neorg toc<cr>',
+        desc = '[N]eorg [T]able of Contents',
+      },
     },
     config = function()
       require('neorg').setup {
@@ -1315,7 +1409,10 @@ require('lazy').setup({
           -- }
         },
       }
+
+      -- in neorg files, map c-shift-n
     end,
+
   },
 
   {
@@ -1394,6 +1491,9 @@ vim.wo.signcolumn = 'yes'
 vim.o.updatetime = 250
 vim.o.timeoutlen = 300
 
+-- Auto-cd into the dir of file
+vim.o.autochdir = true
+
 -- Set completeopt to have a better completion experience
 vim.o.completeopt = 'menuone,noselect'
 
@@ -1454,7 +1554,7 @@ vim.api.nvim_create_autocmd({ 'BufEnter' }, {
   end,
 })
 
+
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
 --
--- A lua function that adds a luasnip snippet called "sets to the cmp engine:
