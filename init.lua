@@ -263,6 +263,7 @@ local on_attach = function(_, bufnr)
 
   nmap('<leader>rn', vim.lsp.buf.rename, '[R]e[n]ame')
   nmap('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction')
+  nmap('<C-space>', vim.lsp.buf.code_action, '[C]ode [A]ction')
 
   nmap('gd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
   nmap('gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
@@ -335,7 +336,7 @@ local configure_lsp = function()
     -- gopls = {},
     -- pyright = {},
     -- rust_analyzer = {},
-    -- tsserver = {},
+    tsserver = {},
     pylsp = {},
     -- html = { filetypes = { 'html', 'twig', 'hbs'} },
     -- csharp_ls = {
@@ -348,6 +349,7 @@ local configure_lsp = function()
       --   return require('lspconfig').util.root_pattern('.godot', '.git')(fname) or vim.fn.getcwd()
       -- end,
     },
+    tailwindcss = {},
     svelte = {},
     lua_ls = {
       Lua = {
@@ -661,6 +663,12 @@ require('lazy').setup({
       'rafamadriz/friendly-snippets',
     },
     config = configure_cmp,
+  },
+
+  {
+    'mattn/emmet-vim',
+    event = 'VeryLazy',
+    ft = { 'typescriptreact', 'html' },
   },
 
   {
@@ -1194,6 +1202,13 @@ require('lazy').setup({
         desc = 'Toggle [N]eoTree on current file',
       },
       {
+        '<C-N>',
+        function()
+          vim.cmd 'Neotree toggle'
+        end,
+        desc = 'Toggle [N]eoTree on curdir',
+      },
+      {
         '<leader>nb',
         function()
           vim.cmd 'Neotree toggle show buffers right'
@@ -1412,7 +1427,6 @@ require('lazy').setup({
 
       -- in neorg files, map c-shift-n
     end,
-
   },
 
   {
@@ -1492,7 +1506,8 @@ vim.o.updatetime = 250
 vim.o.timeoutlen = 300
 
 -- Auto-cd into the dir of file
-vim.o.autochdir = true
+-- disabled because it messes up plugins, like git write, neotree
+vim.o.autochdir = false
 
 -- Set completeopt to have a better completion experience
 vim.o.completeopt = 'menuone,noselect'
@@ -1553,7 +1568,6 @@ vim.api.nvim_create_autocmd({ 'BufEnter' }, {
     vim.bo.shiftwidth = 4
   end,
 })
-
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
