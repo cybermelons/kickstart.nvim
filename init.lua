@@ -24,6 +24,14 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
+local setup_window_keymaps = function ()
+  -- map C-h/j/k/l to move windows
+  vim.api.nvim_set_keymap('n', '<C-h>', '<C-w>h', { noremap = true, silent = true })
+  vim.api.nvim_set_keymap('n', '<C-k>', '<C-w>k', { noremap = true, silent = true })
+  vim.api.nvim_set_keymap('n', '<C-j>', '<C-w>j', { noremap = true, silent = true })
+  vim.api.nvim_set_keymap('n', '<C-l>', '<C-w>l', { noremap = true, silent = true })
+end
+
 local add_statemachine_snippet = function()
   local ls = require 'luasnip'
   local s = ls.snippet
@@ -263,7 +271,7 @@ local on_attach = function(_, bufnr)
 
   nmap('<leader>rn', vim.lsp.buf.rename, '[R]e[n]ame')
   nmap('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction')
-  nmap('<C-space>', vim.lsp.buf.code_action, '[C]ode [A]ction')
+  vim.keymap.set('n', '<C-space>', vim.lsp.buf.code_action, {desc = '[C]ode [A]ction', buffer = bufnr, noremap = true})
 
   nmap('gd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
   nmap('gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
@@ -1507,7 +1515,7 @@ vim.o.timeoutlen = 300
 
 -- Auto-cd into the dir of file
 -- disabled because it messes up plugins, like git write, neotree
-vim.o.autochdir = false
+vim.o.autochdir = true
 
 -- Set completeopt to have a better completion experience
 vim.o.completeopt = 'menuone,noselect'
@@ -1540,10 +1548,10 @@ vim.keymap.set('n', ';', ':', { desc = ':Command mode' })
 
 -- Window management Hotkeys
 -- <Control-HJKL> moves windows
-vim.keymap.set('n', '<C-j>', '<C-w>j', { desc = 'Move to window below' })
-vim.keymap.set('n', '<C-k>', '<C-w>k', { desc = 'Move to window above' })
-vim.keymap.set('n', '<C-h>', '<C-w>h', { desc = 'Move to window left' })
-vim.keymap.set('n', '<C-l>', '<C-w>l', { desc = 'Move to window right' })
+vim.keymap.set('n', '<C-j>', '<C-w>j', { desc = 'Move to window below', noremap = true, silent = true })
+vim.keymap.set('n', '<C-k>', '<C-w>k', { desc = 'Move to window above' , noremap = true, silent = true })
+vim.keymap.set('n', '<C-h>', '<C-w>h', { desc = 'Move to window left' , noremap = true, silent = true })
+vim.keymap.set('n', '<C-l>', '<C-w>l', { desc = 'Move to window right' , noremap = true, silent = true })
 
 -- [[ Highlight on yank ]]
 -- See `:help vim.highlight.on_yank()`
