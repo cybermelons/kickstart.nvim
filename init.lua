@@ -24,7 +24,7 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
-local setup_window_keymaps = function ()
+local setup_window_keymaps = function()
   -- map C-h/j/k/l to move windows
   vim.api.nvim_set_keymap('n', '<C-h>', '<C-w>h', { noremap = true, silent = true })
   vim.api.nvim_set_keymap('n', '<C-k>', '<C-w>k', { noremap = true, silent = true })
@@ -32,12 +32,27 @@ local setup_window_keymaps = function ()
   vim.api.nvim_set_keymap('n', '<C-l>', '<C-w>l', { noremap = true, silent = true })
 end
 
+-- A function to generate UUID
+local function generate_uuid()
+    local template ='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
+    return string.gsub(template, '[xy]', function (c)
+        local v = (c == 'x') and math.random(0, 0xf) or math.random(8, 0xb)
+        return string.format('%x', v)
+    end)
+end
+
 local add_statemachine_snippet = function()
   local ls = require 'luasnip'
   local s = ls.snippet
   local t = ls.text_node
+  local f = ls.function_node
   -- local i = ls.insert_node
   -- local fmt = require('luasnip.extras.fmt').fmt
+  ls.add_snippets('all', {
+    s('uuidgen', {
+      f(generate_uuid, {}),
+    }),
+  })
 
   ls.add_snippets('gdscript', {
     s('state', {
@@ -271,7 +286,7 @@ local on_attach = function(_, bufnr)
 
   nmap('<leader>rn', vim.lsp.buf.rename, '[R]e[n]ame')
   nmap('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction')
-  vim.keymap.set('n', '<C-space>', vim.lsp.buf.code_action, {desc = '[C]ode [A]ction', buffer = bufnr, noremap = true})
+  vim.keymap.set('n', '<C-space>', vim.lsp.buf.code_action, { desc = '[C]ode [A]ction', buffer = bufnr, noremap = true })
 
   nmap('gd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
   nmap('gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
@@ -282,7 +297,7 @@ local on_attach = function(_, bufnr)
 
   -- See `:help K` for why this keymap
   nmap('K', vim.lsp.buf.hover, 'Hover Documentation')
-  nmap('<C-k>', vim.lsp.buf.signature_help, 'Signature Documentation')
+  nmap('<leader>gk', vim.lsp.buf.signature_help, 'Signature Documentation')
 
   -- Lesser used LSP functionality
   nmap('gD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
@@ -459,8 +474,8 @@ local configure_treesitter = function()
     incremental_selection = {
       enable = true,
       keymaps = {
-        init_selection = '<c-space>',
-        node_incremental = '<c-space>',
+        init_selection = '<leader>v',
+        node_incremental = '<leader>v',
         scope_incremental = '<c-s>',
         node_decremental = '<M-space>',
       },
@@ -894,7 +909,7 @@ require('lazy').setup({
       { '<C-0>', '<cmd>ResetFontSize<cr>', desc = 'GUI: Reset font size' },
     },
     config = function()
-      vim.cmd 'SetFont CaskaydiaCove Nerd Font:h12'
+      vim.cmd 'SetFont CaskaydiaCove Nerd Font:h10'
     end,
   },
 
@@ -1549,9 +1564,13 @@ vim.keymap.set('n', ';', ':', { desc = ':Command mode' })
 -- Window management Hotkeys
 -- <Control-HJKL> moves windows
 vim.keymap.set('n', '<C-j>', '<C-w>j', { desc = 'Move to window below', noremap = true, silent = true })
-vim.keymap.set('n', '<C-k>', '<C-w>k', { desc = 'Move to window above' , noremap = true, silent = true })
-vim.keymap.set('n', '<C-h>', '<C-w>h', { desc = 'Move to window left' , noremap = true, silent = true })
-vim.keymap.set('n', '<C-l>', '<C-w>l', { desc = 'Move to window right' , noremap = true, silent = true })
+vim.keymap.set('n', '<C-k>', '<C-w>k', { desc = 'Move to window above', noremap = true, silent = true })
+vim.keymap.set('n', '<C-h>', '<C-w>h', { desc = 'Move to window left', noremap = true, silent = true })
+vim.keymap.set('n', '<C-l>', '<C-w>l', { desc = 'Move to window right', noremap = true, silent = true })
+
+-- Bind shift+j/k to move lines in visual mode
+vim.keymap.set('v', 'K', 'k', { noremap = true, silent = true })
+vim.keymap.set('v', 'J', 'j', { noremap = true, silent = true })
 
 -- [[ Highlight on yank ]]
 -- See `:help vim.highlight.on_yank()`
