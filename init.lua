@@ -1159,6 +1159,9 @@ require('lazy').setup({
     opts = {
       filetypes = {},
     },
+    config = function()
+      vim.g.copilot_filetypes = {markdown = false, norg = false}
+    end,
   },
 
   {
@@ -1280,7 +1283,7 @@ require('lazy').setup({
     lazy = false,
     priority = 1000,
     config = function()
-      --vim.cmd.colorscheme 'tokyonight-moon'
+      vim.cmd.colorscheme 'tokyonight-moon'
     end,
   },
 
@@ -1383,7 +1386,7 @@ require('lazy').setup({
   {
     -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
-    cmd = { 'TSUpdateSync', 'TSUpdate', 'TSInstall' },
+    cmd = { 'TSUpdateSync', 'TSUpdate', 'TSInstall', 'TSBufEnable', 'TSBufDisable' },
     version = false, -- last release is way too old and doesn't work on Windows
     --event = { 'VeryLazy' },
     init = function(plugin)
