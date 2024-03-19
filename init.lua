@@ -34,11 +34,11 @@ end
 
 -- A function to generate UUID
 local function generate_uuid()
-    local template ='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
-    return string.gsub(template, '[xy]', function (c)
-        local v = (c == 'x') and math.random(0, 0xf) or math.random(8, 0xb)
-        return string.format('%x', v)
-    end)
+  local template = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
+  return string.gsub(template, '[xy]', function(c)
+    local v = (c == 'x') and math.random(0, 0xf) or math.random(8, 0xb)
+    return string.format('%x', v)
+  end)
 end
 
 local add_statemachine_snippet = function()
@@ -263,8 +263,8 @@ local configure_telescope = function()
   vim.keymap.set('n', '<C-P>', find_files_from_project_git_root, { desc = 'Search Files' })
   vim.keymap.set('n', '<leader>sh', require('telescope.builtin').help_tags, { desc = '[S]earch [H]elp' })
   vim.keymap.set('n', '<leader>sw', require('telescope.builtin').grep_string, { desc = '[S]earch current [W]ord' })
-  vim.keymap.set('n', '<leader>sg', require('telescope.builtin').live_grep, { desc = '[S]earch by [G]rep' })
-  vim.keymap.set('n', '<leader>sG', ':LiveGrepGitRoot<cr>', { desc = '[S]earch by [G]rep on Git Root' })
+  vim.keymap.set('n', '<leader>sG', require('telescope.builtin').live_grep, { desc = '[S]earch by [G]rep in current dir' })
+  vim.keymap.set('n', '<leader>sg', ':LiveGrepGitRoot<cr>', { desc = '[S]earch by [g]rep on Git Root' })
   vim.keymap.set('n', '<leader>sd', require('telescope.builtin').diagnostics, { desc = '[S]earch [D]iagnostics' })
   vim.keymap.set('n', '<leader>sr', require('telescope.builtin').resume, { desc = '[S]earch [R]esume' })
 end
@@ -454,78 +454,71 @@ local setup_godot_dap = function()
   }
 end
 
-local configure_treesitter = function()
-  -- [[ Configure Treesitter ]]
-  -- See `:help nvim-treesitter`
-  -- Defer Treesitter setup after first render to improve startup time of 'nvim {filename}'
-  require('nvim-treesitter.install').prefer_git = true
-  require('nvim-treesitter.configs').setup {
-    -- Add languages to be installed here that you want installed for treesitter
-    ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash' },
+local treesitter_opts = {
+  ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash' },
 
-    -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
-    auto_install = false,
-    ignore_install = {},
-    sync_install = false,
-    modules = {},
+  -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
+  auto_install = false,
+  ignore_install = {},
+  sync_install = false,
+  modules = {},
 
-    highlight = { enable = true },
-    indent = { enable = true },
-    incremental_selection = {
+  highlight = { enable = true },
+  indent = { enable = true },
+  incremental_selection = {
+    enable = true,
+    keymaps = {
+      init_selection = '<leader>v',
+      node_incremental = '<leader>v',
+      scope_incremental = '<c-s>',
+      node_decremental = '<M-space>',
+    },
+  },
+  textobjects = {
+    select = {
       enable = true,
+      lookahead = true, -- Automatically jump forward to textobj, similar to targets.vim
       keymaps = {
-        init_selection = '<leader>v',
-        node_incremental = '<leader>v',
-        scope_incremental = '<c-s>',
-        node_decremental = '<M-space>',
+        -- You can use the capture groups defined in textobjects.scm
+        ['aa'] = '@parameter.outer',
+        ['ia'] = '@parameter.inner',
+        ['af'] = '@function.outer',
+        ['if'] = '@function.inner',
+        ['ac'] = '@class.outer',
+        ['ic'] = '@class.inner',
       },
     },
-    textobjects = {
-      select = {
-        enable = true,
-        lookahead = true, -- Automatically jump forward to textobj, similar to targets.vim
-        keymaps = {
-          -- You can use the capture groups defined in textobjects.scm
-          ['aa'] = '@parameter.outer',
-          ['ia'] = '@parameter.inner',
-          ['af'] = '@function.outer',
-          ['if'] = '@function.inner',
-          ['ac'] = '@class.outer',
-          ['ic'] = '@class.inner',
-        },
+    move = {
+      enable = true,
+      set_jumps = true, -- whether to set jumps in the jumplist
+      goto_next_start = {
+        [']m'] = '@function.outer',
+        [']]'] = '@class.outer',
       },
-      move = {
-        enable = true,
-        set_jumps = true, -- whether to set jumps in the jumplist
-        goto_next_start = {
-          [']m'] = '@function.outer',
-          [']]'] = '@class.outer',
-        },
-        goto_next_end = {
-          [']M'] = '@function.outer',
-          [']['] = '@class.outer',
-        },
-        goto_previous_start = {
-          ['[m'] = '@function.outer',
-          ['[['] = '@class.outer',
-        },
-        goto_previous_end = {
-          ['[M'] = '@function.outer',
-          ['[]'] = '@class.outer',
-        },
+      goto_next_end = {
+        [']M'] = '@function.outer',
+        [']['] = '@class.outer',
       },
-      swap = {
-        enable = true,
-        swap_next = {
-          ['<leader>a'] = '@parameter.inner',
-        },
-        swap_previous = {
-          ['<leader>A'] = '@parameter.inner',
-        },
+      goto_previous_start = {
+        ['[m'] = '@function.outer',
+        ['[['] = '@class.outer',
+      },
+      goto_previous_end = {
+        ['[M'] = '@function.outer',
+        ['[]'] = '@class.outer',
       },
     },
-  }
-end
+    swap = {
+      enable = true,
+      swap_next = {
+        ['<leader>a'] = '@parameter.inner',
+      },
+      swap_previous = {
+        ['<leader>A'] = '@parameter.inner',
+      },
+    },
+  },
+}
 
 local configure_cmp = function()
   -- [[ Configure nvim-cmp ]]
@@ -1287,7 +1280,7 @@ require('lazy').setup({
     lazy = false,
     priority = 1000,
     config = function()
-      vim.cmd.colorscheme 'tokyonight-moon'
+      --vim.cmd.colorscheme 'tokyonight-moon'
     end,
   },
 
@@ -1324,6 +1317,23 @@ require('lazy').setup({
     main = 'ibl',
     opts = {},
     event = 'VimEnter',
+  },
+
+  {
+    'folke/trouble.nvim',
+    dependencies = { 'nvim-tree/nvim-web-devicons' },
+    keys = {
+      {
+        '<leader>tr',
+        '<cmd>Trouble<cr>',
+        desc = '[Tr]ouble - Show diagnostics',
+      },
+    },
+    opts = {
+      -- your configuration comes here
+      -- or leave it empty to use the default settings
+      -- refer to the configuration section below
+    },
   },
 
   -- Fuzzy Finder (files, lsp, etc)
@@ -1374,17 +1384,44 @@ require('lazy').setup({
     -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
     cmd = { 'TSUpdateSync', 'TSUpdate', 'TSInstall' },
-    event = { 'VeryLazy' },
+    version = false, -- last release is way too old and doesn't work on Windows
+    --event = { 'VeryLazy' },
+    init = function(plugin)
+      -- PERF: add nvim-treesitter queries to the rtp and it's custom query predicates early
+      -- This is needed because a bunch of plugins no longer `require("nvim-treesitter")`, which
+      -- no longer trigger the **nvim-treesitter** module to be loaded in time.
+      -- Luckily, the only things that those plugins need are the custom queries, which we make available
+      -- during startup.
+      require('lazy.core.loader').add_to_rtp(plugin)
+      require 'nvim-treesitter.query_predicates'
+    end,
     dependencies = {
-      'nvim-treesitter/nvim-treesitter-textobjects',
+      {
+        'nvim-treesitter/nvim-treesitter-textobjects',
+      },
     },
     build = ':TSUpdate',
-    config = configure_treesitter,
+    opts = treesitter_opts,
+    ---@param opts TSConfig
+    config = function(_, opts)
+      if type(opts.ensure_installed) == 'table' then
+        ---@type table<string, boolean>
+        local added = {}
+        opts.ensure_installed = vim.tbl_filter(function(lang)
+          if added[lang] then
+            return false
+          end
+          added[lang] = true
+          return true
+        end, opts.ensure_installed)
+      end
+      require('nvim-treesitter.configs').setup(opts)
+    end,
   },
 
   {
     'ggandor/leap.nvim',
-    event = 'VeryLazy',
+    --event = 'VeryLazy', STOP, leap.nvim hanle lazy loading already
     dependencies = {
       'tpope/vim-repeat',
     },
@@ -1398,7 +1435,12 @@ require('lazy').setup({
     'kylechui/nvim-surround',
     version = '*', -- Use for stability; omit to use `main` branch for the latest features
     event = 'VeryLazy',
-    opts = {},
+    opts = {
+      keymaps = {
+        visual = 'gz',
+        visual_line = 'gZ',
+      },
+    },
   },
 
   {
