@@ -685,9 +685,7 @@ require('lazy').setup({
         ".svn",
       }
       require("project_nvim").setup(opts)
-      require("lazyvim.util").on_load("telescope.nvim", function()
-        require("telescope").load_extension("projects")
-      end)
+      require("telescope").load_extension("projects")
     end,
   },
 
