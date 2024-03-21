@@ -645,6 +645,35 @@ require('lazy').setup({
       },
     },
   },
+  {
+    "ahmedkhalf/project.nvim",
+    dependencies = 'nvim-telescope/telescope.nvim',
+    event = "VeryLazy",
+    opts = {
+      manual_mode = false, -- automactically add
+    },
+    keys= {
+      {
+        '<leader>sp',
+        function()
+          require'telescope'.extensions.projects.projects{}
+        end,
+        desc = '[S]earch [P]rojects',
+      },
+    },
+    config = function(_, opts)
+      opts.detection_methods = { "lsp", "pattern" }
+      opts.patterns = {
+        ".git",
+        ".hg",
+        ".svn",
+      }
+      require("project_nvim").setup(opts)
+      require("lazyvim.util").on_load("telescope.nvim", function()
+        require("telescope").load_extension("projects")
+      end)
+    end,
+  },
 
   {
     -- Autocompletion
