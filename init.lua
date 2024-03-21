@@ -24,12 +24,35 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
+local setup_window_keymaps = function()
+  -- map C-h/j/k/l to move windows
+  vim.api.nvim_set_keymap('n', '<C-h>', '<C-w>h', { noremap = true, silent = true })
+  vim.api.nvim_set_keymap('n', '<C-k>', '<C-w>k', { noremap = true, silent = true })
+  vim.api.nvim_set_keymap('n', '<C-j>', '<C-w>j', { noremap = true, silent = true })
+  vim.api.nvim_set_keymap('n', '<C-l>', '<C-w>l', { noremap = true, silent = true })
+end
+
+-- A function to generate UUID
+local function generate_uuid()
+  local template = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
+  return string.gsub(template, '[xy]', function(c)
+    local v = (c == 'x') and math.random(0, 0xf) or math.random(8, 0xb)
+    return string.format('%x', v)
+  end)
+end
+
 local add_statemachine_snippet = function()
   local ls = require 'luasnip'
   local s = ls.snippet
   local t = ls.text_node
+  local f = ls.function_node
   -- local i = ls.insert_node
   -- local fmt = require('luasnip.extras.fmt').fmt
+  ls.add_snippets('all', {
+    s('uuidgen', {
+      f(generate_uuid, {}),
+    }),
+  })
 
   ls.add_snippets('gdscript', {
     s('state', {
@@ -240,8 +263,8 @@ local configure_telescope = function()
   vim.keymap.set('n', '<C-P>', find_files_from_project_git_root, { desc = 'Search Files' })
   vim.keymap.set('n', '<leader>sh', require('telescope.builtin').help_tags, { desc = '[S]earch [H]elp' })
   vim.keymap.set('n', '<leader>sw', require('telescope.builtin').grep_string, { desc = '[S]earch current [W]ord' })
-  vim.keymap.set('n', '<leader>sg', require('telescope.builtin').live_grep, { desc = '[S]earch by [G]rep' })
-  vim.keymap.set('n', '<leader>sG', ':LiveGrepGitRoot<cr>', { desc = '[S]earch by [G]rep on Git Root' })
+  vim.keymap.set('n', '<leader>sG', require('telescope.builtin').live_grep, { desc = '[S]earch by [G]rep in current dir' })
+  vim.keymap.set('n', '<leader>sg', ':LiveGrepGitRoot<cr>', { desc = '[S]earch by [g]rep on Git Root' })
   vim.keymap.set('n', '<leader>sd', require('telescope.builtin').diagnostics, { desc = '[S]earch [D]iagnostics' })
   vim.keymap.set('n', '<leader>sr', require('telescope.builtin').resume, { desc = '[S]earch [R]esume' })
 end
@@ -263,7 +286,7 @@ local on_attach = function(_, bufnr)
 
   nmap('<leader>rn', vim.lsp.buf.rename, '[R]e[n]ame')
   nmap('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction')
-  nmap('<C-space>', vim.lsp.buf.code_action, '[C]ode [A]ction')
+  vim.keymap.set('n', '<C-space>', vim.lsp.buf.code_action, { desc = '[C]ode [A]ction', buffer = bufnr, noremap = true })
 
   nmap('gd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
   nmap('gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
@@ -274,7 +297,7 @@ local on_attach = function(_, bufnr)
 
   -- See `:help K` for why this keymap
   nmap('K', vim.lsp.buf.hover, 'Hover Documentation')
-  nmap('<C-k>', vim.lsp.buf.signature_help, 'Signature Documentation')
+  nmap('<leader>gk', vim.lsp.buf.signature_help, 'Signature Documentation')
 
   -- Lesser used LSP functionality
   nmap('gD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
@@ -431,78 +454,71 @@ local setup_godot_dap = function()
   }
 end
 
-local configure_treesitter = function()
-  -- [[ Configure Treesitter ]]
-  -- See `:help nvim-treesitter`
-  -- Defer Treesitter setup after first render to improve startup time of 'nvim {filename}'
-  require('nvim-treesitter.install').prefer_git = true
-  require('nvim-treesitter.configs').setup {
-    -- Add languages to be installed here that you want installed for treesitter
-    ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash' },
+local treesitter_opts = {
+  ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash' },
 
-    -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
-    auto_install = false,
-    ignore_install = {},
-    sync_install = false,
-    modules = {},
+  -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
+  auto_install = false,
+  ignore_install = {},
+  sync_install = false,
+  modules = {},
 
-    highlight = { enable = true },
-    indent = { enable = true },
-    incremental_selection = {
+  highlight = { enable = true },
+  indent = { enable = true },
+  incremental_selection = {
+    enable = true,
+    keymaps = {
+      init_selection = '<leader>v',
+      node_incremental = '<leader>v',
+      scope_incremental = '<c-s>',
+      node_decremental = '<M-space>',
+    },
+  },
+  textobjects = {
+    select = {
       enable = true,
+      lookahead = true, -- Automatically jump forward to textobj, similar to targets.vim
       keymaps = {
-        init_selection = '<c-space>',
-        node_incremental = '<c-space>',
-        scope_incremental = '<c-s>',
-        node_decremental = '<M-space>',
+        -- You can use the capture groups defined in textobjects.scm
+        ['aa'] = '@parameter.outer',
+        ['ia'] = '@parameter.inner',
+        ['af'] = '@function.outer',
+        ['if'] = '@function.inner',
+        ['ac'] = '@class.outer',
+        ['ic'] = '@class.inner',
       },
     },
-    textobjects = {
-      select = {
-        enable = true,
-        lookahead = true, -- Automatically jump forward to textobj, similar to targets.vim
-        keymaps = {
-          -- You can use the capture groups defined in textobjects.scm
-          ['aa'] = '@parameter.outer',
-          ['ia'] = '@parameter.inner',
-          ['af'] = '@function.outer',
-          ['if'] = '@function.inner',
-          ['ac'] = '@class.outer',
-          ['ic'] = '@class.inner',
-        },
+    move = {
+      enable = true,
+      set_jumps = true, -- whether to set jumps in the jumplist
+      goto_next_start = {
+        [']m'] = '@function.outer',
+        [']]'] = '@class.outer',
       },
-      move = {
-        enable = true,
-        set_jumps = true, -- whether to set jumps in the jumplist
-        goto_next_start = {
-          [']m'] = '@function.outer',
-          [']]'] = '@class.outer',
-        },
-        goto_next_end = {
-          [']M'] = '@function.outer',
-          [']['] = '@class.outer',
-        },
-        goto_previous_start = {
-          ['[m'] = '@function.outer',
-          ['[['] = '@class.outer',
-        },
-        goto_previous_end = {
-          ['[M'] = '@function.outer',
-          ['[]'] = '@class.outer',
-        },
+      goto_next_end = {
+        [']M'] = '@function.outer',
+        [']['] = '@class.outer',
       },
-      swap = {
-        enable = true,
-        swap_next = {
-          ['<leader>a'] = '@parameter.inner',
-        },
-        swap_previous = {
-          ['<leader>A'] = '@parameter.inner',
-        },
+      goto_previous_start = {
+        ['[m'] = '@function.outer',
+        ['[['] = '@class.outer',
+      },
+      goto_previous_end = {
+        ['[M'] = '@function.outer',
+        ['[]'] = '@class.outer',
       },
     },
-  }
-end
+    swap = {
+      enable = true,
+      swap_next = {
+        ['<leader>a'] = '@parameter.inner',
+      },
+      swap_previous = {
+        ['<leader>A'] = '@parameter.inner',
+      },
+    },
+  },
+}
 
 local configure_cmp = function()
   -- [[ Configure nvim-cmp ]]
@@ -915,7 +931,7 @@ require('lazy').setup({
       { '<C-0>', '<cmd>ResetFontSize<cr>', desc = 'GUI: Reset font size' },
     },
     config = function()
-      vim.cmd 'SetFont CaskaydiaCove Nerd Font:h12'
+      vim.cmd 'SetFont CaskaydiaCove Nerd Font:h10'
     end,
   },
 
@@ -1172,6 +1188,9 @@ require('lazy').setup({
     opts = {
       filetypes = {},
     },
+    config = function()
+      vim.g.copilot_filetypes = {markdown = false, norg = false}
+    end,
   },
 
   {
@@ -1332,6 +1351,23 @@ require('lazy').setup({
     event = 'VimEnter',
   },
 
+  {
+    'folke/trouble.nvim',
+    dependencies = { 'nvim-tree/nvim-web-devicons' },
+    keys = {
+      {
+        '<leader>tr',
+        '<cmd>Trouble<cr>',
+        desc = '[Tr]ouble - Show diagnostics',
+      },
+    },
+    opts = {
+      -- your configuration comes here
+      -- or leave it empty to use the default settings
+      -- refer to the configuration section below
+    },
+  },
+
   -- Fuzzy Finder (files, lsp, etc)
   {
     'nvim-telescope/telescope.nvim',
@@ -1379,18 +1415,45 @@ require('lazy').setup({
   {
     -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
-    cmd = { 'TSUpdateSync', 'TSUpdate', 'TSInstall' },
-    event = { 'VeryLazy' },
+    cmd = { 'TSUpdateSync', 'TSUpdate', 'TSInstall', 'TSBufEnable', 'TSBufDisable' },
+    version = false, -- last release is way too old and doesn't work on Windows
+    --event = { 'VeryLazy' },
+    init = function(plugin)
+      -- PERF: add nvim-treesitter queries to the rtp and it's custom query predicates early
+      -- This is needed because a bunch of plugins no longer `require("nvim-treesitter")`, which
+      -- no longer trigger the **nvim-treesitter** module to be loaded in time.
+      -- Luckily, the only things that those plugins need are the custom queries, which we make available
+      -- during startup.
+      require('lazy.core.loader').add_to_rtp(plugin)
+      require 'nvim-treesitter.query_predicates'
+    end,
     dependencies = {
-      'nvim-treesitter/nvim-treesitter-textobjects',
+      {
+        'nvim-treesitter/nvim-treesitter-textobjects',
+      },
     },
     build = ':TSUpdate',
-    config = configure_treesitter,
+    opts = treesitter_opts,
+    ---@param opts TSConfig
+    config = function(_, opts)
+      if type(opts.ensure_installed) == 'table' then
+        ---@type table<string, boolean>
+        local added = {}
+        opts.ensure_installed = vim.tbl_filter(function(lang)
+          if added[lang] then
+            return false
+          end
+          added[lang] = true
+          return true
+        end, opts.ensure_installed)
+      end
+      require('nvim-treesitter.configs').setup(opts)
+    end,
   },
 
   {
     'ggandor/leap.nvim',
-    event = 'VeryLazy',
+    --event = 'VeryLazy', STOP, leap.nvim hanle lazy loading already
     dependencies = {
       'tpope/vim-repeat',
     },
@@ -1404,7 +1467,12 @@ require('lazy').setup({
     'kylechui/nvim-surround',
     version = '*', -- Use for stability; omit to use `main` branch for the latest features
     event = 'VeryLazy',
-    opts = {},
+    opts = {
+      keymaps = {
+        visual = 'gz',
+        visual_line = 'gZ',
+      },
+    },
   },
 
   {
@@ -1536,7 +1604,7 @@ vim.o.timeoutlen = 300
 
 -- Auto-cd into the dir of file
 -- disabled because it messes up plugins, like git write, neotree
-vim.o.autochdir = false
+vim.o.autochdir = true
 
 -- Set completeopt to have a better completion experience
 vim.o.completeopt = 'menuone,noselect'
@@ -1569,10 +1637,14 @@ vim.keymap.set('n', ';', ':', { desc = ':Command mode' })
 
 -- Window management Hotkeys
 -- <Control-HJKL> moves windows
-vim.keymap.set('n', '<C-j>', '<C-w>j', { desc = 'Move to window below' })
-vim.keymap.set('n', '<C-k>', '<C-w>k', { desc = 'Move to window above' })
-vim.keymap.set('n', '<C-h>', '<C-w>h', { desc = 'Move to window left' })
-vim.keymap.set('n', '<C-l>', '<C-w>l', { desc = 'Move to window right' })
+vim.keymap.set('n', '<C-j>', '<C-w>j', { desc = 'Move to window below', noremap = true, silent = true })
+vim.keymap.set('n', '<C-k>', '<C-w>k', { desc = 'Move to window above', noremap = true, silent = true })
+vim.keymap.set('n', '<C-h>', '<C-w>h', { desc = 'Move to window left', noremap = true, silent = true })
+vim.keymap.set('n', '<C-l>', '<C-w>l', { desc = 'Move to window right', noremap = true, silent = true })
+
+-- Bind shift+j/k to move lines in visual mode
+vim.keymap.set('v', 'K', 'k', { noremap = true, silent = true })
+vim.keymap.set('v', 'J', 'j', { noremap = true, silent = true })
 
 -- [[ Highlight on yank ]]
 -- See `:help vim.highlight.on_yank()`
