@@ -835,7 +835,7 @@ require('lazy').setup({
       -- Additional lua configuration, makes nvim stuff amazing!
       'folke/neodev.nvim',
     },
-    config = configure_lsp,
+    --config = configure_lsp,
     event = { 'VeryLazy' },
   },
 
@@ -1646,17 +1646,18 @@ require('lazy').setup({
       -- add any options here
     },
   },
+  {
+    'vhyrro/luarocks.nvim',
+    priority = 1000, -- Very high priority is required, luarocks.nvim should run as the first plugin in your config.
+    config = true,
+  },
 
   {
     'nvim-neorg/neorg',
     ft = 'norg',
-    dependencies = { 'nvim-lua/plenary.nvim', {
-      'vhyrro/luarocks.nvim',
-      priority = 1000,
-      config = true,
-    } 
-  },
+    dependencies = { 'vhyrro/luarocks.nvim' },
     cmd = { 'Neorg', 'NeorgOpen', 'NeorgNew' },
+    lazy = false,
     keys = {
       {
         '<leader>N',
@@ -1691,6 +1692,8 @@ require('lazy').setup({
       }
 
       -- in neorg files, map c-shift-n
+      vim.wo.foldlevel = 99
+      vim.wo.conceallevel = 2
     end,
   },
 
