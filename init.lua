@@ -833,7 +833,7 @@ require('lazy').setup({
       -- Additional lua configuration, makes nvim stuff amazing!
       'folke/neodev.nvim',
     },
-    --config = configure_lsp,
+    config = configure_lsp,
     event = { 'VeryLazy' },
   },
 
