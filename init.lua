@@ -253,13 +253,11 @@ local add_statemachine_snippet = function()
         '',
         '# Initialize the state machine by giving each child state a reference to the',
         '# parent object it belongs to and enter the default starting_state.',
-        [[
-func enter() -> void:
-	pass
-
-func exit() -> void:
-	pass
-]],
+        '',
+        'func enter() -> void:',
+	'pass',
+  'func exit() -> void:',
+	'pass',
         '',
         '',
         'func process_physics(delta: float) -> void:',
@@ -585,12 +583,12 @@ local configure_lsp = function()
   }
 
   -- Install non-lsps with mason.
-  --require('mason-tool-installer').setup {
-    --ensure_installed = {
-      --'stylua',
-      --'prettier',
-    --},
-  --}
+  -- require('mason-tool-installer').setup {
+  --   ensure_installed = {
+  --     'stylua',
+  --     'prettier',
+  --   },
+  -- }
 
   mason_lspconfig.setup_handlers {
     function(server_name)
@@ -608,7 +606,7 @@ local configure_lsp = function()
     capabilities = capabilities,
     on_attach = on_attach,
     -- NOTE: for whatever reason, vim.lsp.rpc.connect() doesn't work with gdscript
-    cmd = { 'ncat', 'localhost', '6005' },
+    cmd = { 'netcat', 'localhost', '6005' },
     filetypes = { 'gd', 'gdscript', 'gdscript3' },
     keys = {
       {
