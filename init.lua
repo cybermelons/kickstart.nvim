@@ -585,12 +585,12 @@ local configure_lsp = function()
   }
 
   -- Install non-lsps with mason.
-  require('mason-tool-installer').setup {
-    ensure_installed = {
-      'stylua',
-      'prettier',
-    },
-  }
+  --require('mason-tool-installer').setup {
+    --ensure_installed = {
+      --'stylua',
+      --'prettier',
+    --},
+  --}
 
   mason_lspconfig.setup_handlers {
     function(server_name)
@@ -835,7 +835,7 @@ require('lazy').setup({
       -- Additional lua configuration, makes nvim stuff amazing!
       'folke/neodev.nvim',
     },
-    --config = configure_lsp,
+    config = configure_lsp,
     event = { 'VeryLazy' },
   },
 
