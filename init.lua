@@ -255,9 +255,9 @@ local add_statemachine_snippet = function()
         '# parent object it belongs to and enter the default starting_state.',
         '',
         'func enter() -> void:',
-	'pass',
-  'func exit() -> void:',
-	'pass',
+        'pass',
+        'func exit() -> void:',
+        'pass',
         '',
         '',
         'func process_physics(delta: float) -> void:',
@@ -555,6 +555,7 @@ local configure_lsp = function()
       -- end,
     },
     tailwindcss = {},
+    astro = {},
     svelte = {},
     lua_ls = {
       Lua = {
@@ -851,30 +852,30 @@ require('lazy').setup({
     },
   },
   {
-    "ahmedkhalf/project.nvim",
+    'ahmedkhalf/project.nvim',
     dependencies = 'nvim-telescope/telescope.nvim',
-    event = "VeryLazy",
+    event = 'VeryLazy',
     opts = {
       manual_mode = false, -- automactically add
     },
-    keys= {
+    keys = {
       {
         '<leader>sp',
         function()
-          require'telescope'.extensions.projects.projects{}
+          require('telescope').extensions.projects.projects {}
         end,
         desc = '[S]earch [P]rojects',
       },
     },
     config = function(_, opts)
-      opts.detection_methods = { "lsp", "pattern" }
+      opts.detection_methods = { 'lsp', 'pattern' }
       opts.patterns = {
-        ".git",
-        ".hg",
-        ".svn",
+        '.git',
+        '.hg',
+        '.svn',
       }
-      require("project_nvim").setup(opts)
-      require("telescope").load_extension("projects")
+      require('project_nvim').setup(opts)
+      require('telescope').load_extension 'projects'
     end,
   },
 
@@ -1606,7 +1607,7 @@ require('lazy').setup({
     'nvim-treesitter/nvim-treesitter',
     cmd = { 'TSUpdateSync', 'TSUpdate', 'TSInstall', 'TSBufEnable', 'TSBufDisable' },
     version = false, -- last release is way too old and doesn't work on Windows
-    --event = { 'VeryLazy' },
+    event = { 'VeryLazy' },
     init = function(plugin)
       -- PERF: add nvim-treesitter queries to the rtp and it's custom query predicates early
       -- This is needed because a bunch of plugins no longer `require("nvim-treesitter")`, which
