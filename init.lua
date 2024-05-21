@@ -557,6 +557,9 @@ local configure_lsp = function()
     tailwindcss = {},
     astro = {},
     svelte = {},
+    marksman = {
+      filetypes = { 'md', 'markdown', 'mdx', 'mdown' },
+    },
     lua_ls = {
       Lua = {
         workspace = { checkThirdParty = false },
@@ -901,7 +904,7 @@ require('lazy').setup({
   {
     'mattn/emmet-vim',
     event = 'VeryLazy',
-    ft = { 'typescriptreact', 'html' },
+    ft = { 'typescriptreact', 'html', 'astro' },
   },
 
   {
@@ -1639,6 +1642,11 @@ require('lazy').setup({
       end
       require('nvim-treesitter.configs').setup(opts)
     end,
+  },
+  {
+    'davidmh/mdx.nvim',
+    config = true,
+    dependencies = { 'nvim-treesitter/nvim-treesitter' },
   },
 
   {
