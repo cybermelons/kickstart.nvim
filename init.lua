@@ -41,6 +41,10 @@ local function generate_uuid()
   end)
 end
 
+local add_plugin_snippets = function()
+  require("luasnip.loaders.from_snipmate").lazy_load()
+end
+
 local add_statemachine_snippet = function()
   local ls = require 'luasnip'
   local s = ls.snippet
@@ -778,6 +782,7 @@ local configure_cmp = function()
 
   -- Custom snippets in luasnip here
   add_statemachine_snippet()
+  add_plugin_snippets()
 end
 
 -- [[ Configure plugins ]]
@@ -897,6 +902,8 @@ require('lazy').setup({
 
       -- Adds a number of user-friendly snippets
       -- 'rafamadriz/friendly-snippets',
+      'honza/vim-snippets',
+      'louiss0/astro-snippets',
     },
     config = configure_cmp,
   },
@@ -905,6 +912,12 @@ require('lazy').setup({
     'mattn/emmet-vim',
     event = 'VeryLazy',
     ft = { 'typescriptreact', 'html', 'astro' },
+  },
+
+  {
+    'norcalli/nvim-colorizer.lua',
+    event = 'VeryLazy',
+    --ft = { 'typescriptreact', 'typescript', 'javascript', 'css' },
   },
 
   {
@@ -1124,7 +1137,7 @@ require('lazy').setup({
       { '<C-0>', '<cmd>ResetFontSize<cr>', desc = 'GUI: Reset font size' },
     },
     config = function()
-      vim.cmd 'SetFont CaskaydiaCove Nerd Font:h10'
+      vim.cmd 'SetFont CaskaydiaCove Nerd Font:h14'
     end,
   },
 
@@ -1817,7 +1830,9 @@ vim.o.completeopt = 'menuone,noselect'
 -- NOTE: You should make sure your terminal supports this
 vim.o.termguicolors = true
 
-vim.o.guifont = 'CaskaydiaCove Nerd Font:h14'
+
+-- overridden by ez-guifont, so commenting out.
+-- vim.o.guifont = 'CaskaydiaCove Nerd Font:h14'
 
 vim.o.scrolloff = 8
 
