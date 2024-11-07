@@ -506,6 +506,8 @@ end
 local configure_lsp = function()
   -- [[ Configure LSP ]]
   --  This function gets run when an LSP connects to a particular buffer.
+  --
+  --
 
   require('neodev').setup()
   -- document existing key chains
@@ -545,7 +547,9 @@ local configure_lsp = function()
     -- gopls = {},
     -- pyright = {},
     -- rust_analyzer = {},
-    tsserver = {},
+    tsserver = {
+      root_dir = require('lspconfig').util.root_pattern("package.json"),
+    },
     pylsp = {},
     -- html = { filetypes = { 'html', 'twig', 'hbs'} },
     -- csharp_ls = {
@@ -558,6 +562,8 @@ local configure_lsp = function()
       --   return require('lspconfig').util.root_pattern('.godot', '.git')(fname) or vim.fn.getcwd()
       -- end,
     },
+
+    --denols = { },
     tailwindcss = {},
     astro = {},
     svelte = {},
@@ -627,6 +633,31 @@ local configure_lsp = function()
       return require('lspconfig').util.root_pattern('project.godot', '.git')(fname) or vim.fn.getcwd()
     end,
   }
+
+
+require('lspconfig').tsserver.setup({
+  on_attach = function (client, bufnr)
+    on_attach(client, bufnr);
+    vim.keymap.set('n', '<leader>ro', function()
+      vim.lsp.buf.execute_command({
+        command = "_typescript.organizeImports",
+        arguments = { vim.fn.expand("%:p") }
+      })
+    end, { buffer = bufnr,  remap = false });
+  end,
+  root_dir = function (filename, bufnr)
+    local denoRootDir = require('lspconfig').util.root_pattern("deno.json", "deno.json")(filename);
+    if denoRootDir then
+      -- print('this seems to be a deno project; returning nil so that tsserver does not attach');
+      return nil;
+    -- else
+      -- print('this seems to be a ts project; return root dir based on package.json')
+    end
+
+    return require('lspconfig').util.root_pattern("package.json")(filename);
+  end,
+  single_file_support = false,
+})
 end
 
 -- Godot setup function
@@ -782,7 +813,7 @@ local configure_cmp = function()
 
   -- Custom snippets in luasnip here
   add_statemachine_snippet()
-  add_plugin_snippets()
+  --add_plugin_snippets()
 end
 
 -- [[ Configure plugins ]]
@@ -859,6 +890,57 @@ require('lazy').setup({
       },
     },
   },
+
+  {
+  "yetone/avante.nvim",
+  event = "VeryLazy",
+  lazy = false,
+  version = false, -- set this if you want to always pull the latest change
+  opts = {
+        -- recommended settings
+          provider = "claude",
+  claude = {
+    endpoint = "https://api.anthropic.com",
+    model = "claude-3-5-sonnet-20240620",
+    temperature = 0,
+    max_tokens = 8100,
+  },
+  -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
+  build = "make",
+  -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
+  dependencies = {
+    "stevearc/dressing.nvim",
+    "nvim-lua/plenary.nvim",
+    "MunifTanjim/nui.nvim",
+    --- The below dependencies are optional,
+    "nvim-tree/nvim-web-devicons", -- or echasnovski/mini.icons
+    --"zbirenbaum/copilot.lua", -- for providers='copilot'
+    {
+      -- support for image pasting
+      "HakonHarnes/img-clip.nvim",
+      event = "VeryLazy",
+        default = {
+          embed_image_as_base64 = false,
+          prompt_for_file_name = false,
+          drag_and_drop = {
+            insert_mode = true,
+          },
+          -- required for Windows users
+          use_absolute_path = true,
+        },
+      },
+    },
+    {
+      -- Make sure to set this up properly if you have lazy=true
+      'MeanderingProgrammer/render-markdown.nvim',
+      opts = {
+        file_types = { "markdown", "Avante" },
+      },
+      ft = { "markdown", "Avante" },
+    },
+  },
+},
+
   {
     'ahmedkhalf/project.nvim',
     dependencies = 'nvim-telescope/telescope.nvim',
@@ -1855,6 +1937,7 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 -- Comment with Ctrl-/
 vim.keymap.set('n', '<C-/>', '<Plug>(comment_toggle_linewise_current)', { desc = '[Ctrl-/] Comment toggle linewise' })
 vim.keymap.set('x', '<C-/>', '<Plug>(comment_toggle_linewise_visual)', { desc = '[Ctrl-/] Comment toggle linewise' })
+vim.keymap.set('v', '<C-/>', '<Plug>(comment_toggle_linewise_visual)', { desc = '[Ctrl-/] Comment toggle linewise' })
 vim.keymap.set('n', ';', ':', { desc = ':Command mode' })
 
 -- Window management Hotkeys
@@ -1896,6 +1979,15 @@ vim.api.nvim_create_autocmd({ 'BufEnter' }, {
   pattern = { '*.norg' },
   callback = function()
     vim.o.number = false
+  end,
+})
+
+
+-- Set shiftwidth for everything to 2
+vim.api.nvim_create_autocmd({ 'BufEnter' }, {
+  callback = function()
+    vim.bo.tabstop = 2
+    vim.bo.shiftwidth = 2
   end,
 })
 
