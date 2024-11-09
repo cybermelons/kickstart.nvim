@@ -42,7 +42,7 @@ local function generate_uuid()
 end
 
 local add_plugin_snippets = function()
-  require("luasnip.loaders.from_snipmate").lazy_load()
+  require('luasnip.loaders.from_snipmate').lazy_load()
 end
 
 local add_statemachine_snippet = function()
@@ -547,8 +547,8 @@ local configure_lsp = function()
     -- gopls = {},
     -- pyright = {},
     -- rust_analyzer = {},
-    tsserver = {
-      root_dir = require('lspconfig').util.root_pattern("package.json"),
+    ts_ls = {
+      root_dir = require('lspconfig').util.root_pattern 'package.json',
     },
     pylsp = {},
     -- html = { filetypes = { 'html', 'twig', 'hbs'} },
@@ -634,30 +634,29 @@ local configure_lsp = function()
     end,
   }
 
+  require('lspconfig').ts_ls.setup {
+    on_attach = function(client, bufnr)
+      on_attach(client, bufnr)
+      vim.keymap.set('n', '<leader>ro', function()
+        vim.lsp.buf.execute_command {
+          command = '_typescript.organizeImports',
+          arguments = { vim.fn.expand '%:p' },
+        }
+      end, { buffer = bufnr, remap = false })
+    end,
+    root_dir = function(filename, bufnr)
+      local denoRootDir = require('lspconfig').util.root_pattern('deno.json', 'deno.json')(filename)
+      if denoRootDir then
+        -- print('this seems to be a deno project; returning nil so that tsserver does not attach');
+        return nil
+        -- else
+        -- print('this seems to be a ts project; return root dir based on package.json')
+      end
 
-require('lspconfig').tsserver.setup({
-  on_attach = function (client, bufnr)
-    on_attach(client, bufnr);
-    vim.keymap.set('n', '<leader>ro', function()
-      vim.lsp.buf.execute_command({
-        command = "_typescript.organizeImports",
-        arguments = { vim.fn.expand("%:p") }
-      })
-    end, { buffer = bufnr,  remap = false });
-  end,
-  root_dir = function (filename, bufnr)
-    local denoRootDir = require('lspconfig').util.root_pattern("deno.json", "deno.json")(filename);
-    if denoRootDir then
-      -- print('this seems to be a deno project; returning nil so that tsserver does not attach');
-      return nil;
-    -- else
-      -- print('this seems to be a ts project; return root dir based on package.json')
-    end
-
-    return require('lspconfig').util.root_pattern("package.json")(filename);
-  end,
-  single_file_support = false,
-})
+      return require('lspconfig').util.root_pattern 'package.json'(filename)
+    end,
+    single_file_support = false,
+  }
 end
 
 -- Godot setup function
@@ -892,54 +891,56 @@ require('lazy').setup({
   },
 
   {
-  "yetone/avante.nvim",
-  event = "VeryLazy",
-  lazy = false,
-  version = false, -- set this if you want to always pull the latest change
-  opts = {
-        -- recommended settings
-          provider = "claude",
-  claude = {
-    endpoint = "https://api.anthropic.com",
-    model = "claude-3-5-sonnet-20240620",
-    temperature = 0,
-    max_tokens = 8100,
-  },
-  -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
-  build = "make",
-  -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
-  dependencies = {
-    "stevearc/dressing.nvim",
-    "nvim-lua/plenary.nvim",
-    "MunifTanjim/nui.nvim",
-    --- The below dependencies are optional,
-    "nvim-tree/nvim-web-devicons", -- or echasnovski/mini.icons
-    --"zbirenbaum/copilot.lua", -- for providers='copilot'
-    {
-      -- support for image pasting
-      "HakonHarnes/img-clip.nvim",
-      event = "VeryLazy",
-        default = {
-          embed_image_as_base64 = false,
-          prompt_for_file_name = false,
-          drag_and_drop = {
-            insert_mode = true,
+    'yetone/avante.nvim',
+    event = 'VeryLazy',
+    lazy = false,
+    version = false, -- set this if you want to always pull the latest change
+    build = 'make',
+    enabled = not vim.fn.has('win32'),
+    opts = {
+      -- recommended settings
+      provider = 'claude',
+      claude = {
+        endpoint = 'https://api.anthropic.com',
+        model = 'claude-3-5-sonnet-20240620',
+        temperature = 0,
+        max_tokens = 8100,
+      },
+      -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
+      build = 'make',
+      -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
+      dependencies = {
+        'stevearc/dressing.nvim',
+        'nvim-lua/plenary.nvim',
+        'MunifTanjim/nui.nvim',
+        --- The below dependencies are optional,
+        'nvim-tree/nvim-web-devicons', -- or echasnovski/mini.icons
+        --"zbirenbaum/copilot.lua", -- for providers='copilot'
+        {
+          -- support for image pasting
+          'HakonHarnes/img-clip.nvim',
+          event = 'VeryLazy',
+          default = {
+            embed_image_as_base64 = false,
+            prompt_for_file_name = false,
+            drag_and_drop = {
+              insert_mode = true,
+            },
+            -- required for Windows users
+            use_absolute_path = true,
           },
-          -- required for Windows users
-          use_absolute_path = true,
         },
       },
-    },
-    {
-      -- Make sure to set this up properly if you have lazy=true
-      'MeanderingProgrammer/render-markdown.nvim',
-      opts = {
-        file_types = { "markdown", "Avante" },
+      {
+        -- Make sure to set this up properly if you have lazy=true
+        'MeanderingProgrammer/render-markdown.nvim',
+        opts = {
+          file_types = { 'markdown', 'Avante' },
+        },
+        ft = { 'markdown', 'Avante' },
       },
-      ft = { "markdown", "Avante" },
     },
   },
-},
 
   {
     'ahmedkhalf/project.nvim',
@@ -1159,6 +1160,7 @@ require('lazy').setup({
         -- Use the "_" filetype to run formatters on filetypes that don't
         -- have other formatters configured.
         ['_'] = { 'trim_whitespace' },
+        ['astro'] = { 'prettierd', 'prettier' },
         ['javascript'] = { 'prettierd', 'prettier' },
         ['javascriptreact'] = { 'prettierd', 'prettier' },
         ['typescript'] = { 'prettierd', 'prettier' },
@@ -1580,7 +1582,23 @@ require('lazy').setup({
     'echasnovski/mini.nvim',
     version = '*',
     config = function()
-      require('mini.animate').setup()
+      local animate = require 'mini.animate'
+      local timing_100 = animate.gen_timing.linear { duration = 100, unit = 'total' }
+      animate.setup {
+        
+        cursor = {
+          timing = timing_100,
+        },
+        close = {
+          timing = timing_100,
+        },
+        scroll = {
+          timing = timing_100,
+        },
+        resize = {
+          timing = timing_100,
+        },
+      }
     end,
     -- enable only if neovide isn't available
     enabled = not vim.g.neovide,
@@ -1912,7 +1930,6 @@ vim.o.completeopt = 'menuone,noselect'
 -- NOTE: You should make sure your terminal supports this
 vim.o.termguicolors = true
 
-
 -- overridden by ez-guifont, so commenting out.
 -- vim.o.guifont = 'CaskaydiaCove Nerd Font:h14'
 
@@ -1982,7 +1999,6 @@ vim.api.nvim_create_autocmd({ 'BufEnter' }, {
   end,
 })
 
-
 -- Set shiftwidth for everything to 2
 vim.api.nvim_create_autocmd({ 'BufEnter' }, {
   callback = function()
@@ -1991,6 +2007,17 @@ vim.api.nvim_create_autocmd({ 'BufEnter' }, {
   end,
 })
 
+-- On windows, disable man when perssing Shift-k
+-- Disable man-related functionality on Windows
+if vim.fn.has('win32') then
+    vim.g.loaded_man = 1
+    vim.g.no_man_maps = 1
+    -- Provide a dummy man.lua module
+    package.loaded['man'] = {
+        init = function() end,
+        man_complement = function() end
+    }
+end
+
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
---
