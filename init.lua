@@ -902,7 +902,7 @@ require('lazy').setup({
       require('nzk').setup()
     end,
     ft = {'markdown'},
-    branch = 'main',
+    version = false,
   },
   {
   "yetone/avante.nvim",
