@@ -547,7 +547,7 @@ local configure_lsp = function()
     -- gopls = {},
     -- pyright = {},
     -- rust_analyzer = {},
-    tsserver = {
+    ts_ls = {
       root_dir = require('lspconfig').util.root_pattern("package.json"),
     },
     pylsp = {},
@@ -635,7 +635,7 @@ local configure_lsp = function()
   }
 
 
-require('lspconfig').tsserver.setup({
+require('lspconfig').ts_ls.setup({
   on_attach = function (client, bufnr)
     on_attach(client, bufnr);
     vim.keymap.set('n', '<leader>ro', function()
@@ -891,6 +891,19 @@ require('lazy').setup({
     },
   },
 
+  {
+    "git@github.com:cybermelons/nzk.nvim",
+    dependencies = {
+      'nvim-lua/plenary.nvim',
+      'nvim-telescope/telescope.nvim',
+      'renerocksai/telekasten.nvim',
+    },
+    config = function()
+      require('nzk').setup()
+    end,
+    ft = {'markdown'},
+    branch = 'main',
+  },
   {
   "yetone/avante.nvim",
   event = "VeryLazy",
