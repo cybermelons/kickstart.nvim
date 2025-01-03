@@ -881,7 +881,7 @@ require('lazy').setup({
     event = 'VeryLazy',
     keys = {
       {
-        '<leader>z',
+        '<leader>mz',
         function()
           require('zen-mode').toggle {}
         end,
@@ -892,31 +892,38 @@ require('lazy').setup({
 
   {
     'nvim-telekasten/telekasten.nvim',
-    opts = function()
-      -- Determine the correct notes directory based on the OS
-      local home_dir
-      if vim.loop.os_uname().sysname == 'Windows_NT' then
-        home_dir = 'C:/Users/cybermelon/notes' -- Replace `YourUsername` with your actual username
-      else
-        home_dir = vim.fn.expand '~/notes'
-      end
-      return {
-        home = home_dir,
-        auto_set_filetype = true, -- Set filetype to telekasten automatically
-        dailies = 'daily', -- Subdirectory for daily notes
-        weeklies = 'weekly', -- Subdirectory for weekly notes
-        templates = 'templates', -- Subdirectory for templates
-        extension = '.md', -- Use .md files for markdown notes
-        follow_creates_nonexisting = true, -- Automatically create files when following markdown links
-        -- Use markdown-style links instead of wikilinks
-        plug_into_calendar = false, -- Disable calendar integration if not needed
-        use_wiki_style = false, -- Use markdown links like `[link text](path)`
-      }
-    end,
+    dependencies = { 'nvim-telescope/telescope.nvim' },
+    keys = {
+      { mode = { 'n' }, '<leader>z', '<cmd>Telekasten panel<CR>' },
+      -- Call insert link automatically when we start typing a link
+      { mode = { 'i' }, '[[', '<cmd>Telekasten insert_link<CR>' },
+      -- Most used functions
+      { mode = { 'n' }, '<leader>zf', '<cmd>Telekasten find_notes<CR>' },
+      { mode = { 'n' }, '<leader>zg', '<cmd>Telekasten search_notes<CR>' },
+      { mode = { 'n' }, '<leader>zd', '<cmd>Telekasten goto_today<CR>' },
+      { mode = { 'n' }, '<leader>zz', '<cmd>Telekasten follow_link<CR>' },
+      { mode = { 'n' }, '<leader>zn', '<cmd>Telekasten new_note<CR>' },
+      { mode = { 'n' }, '<leader>zc', '<cmd>Telekasten show_calendar<CR>' },
+      { mode = { 'n' }, '<leader>zb', '<cmd>Telekasten show_backlinks<CR>' },
+      { mode = { 'n' }, '<leader>zI', '<cmd>Telekasten insert_img_link<CR>' },
+    },
+    opts = {
+      home = '~/notes',
+      auto_set_filetype = true, -- Set filetype to telekasten automatically
+      dailies = 'daily', -- Subdirectory for daily notes
+      weeklies = 'weekly', -- Subdirectory for weekly notes
+      templates = 'templates', -- Subdirectory for templates
+      extension = '.md', -- Use .md files for markdown notes
+      follow_creates_nonexisting = true, -- Automatically create files when following markdown links
+      -- Use markdown-style links instead of wikilinks
+      plug_into_calendar = false, -- Disable calendar integration if not needed
+      use_wiki_style = false, -- Use markdown links like `[link text](path)`
+    },
   },
 
   {
     'git@github.com:cybermelons/nzk.nvim',
+    enabled = false,
     dependencies = {
       'nvim-lua/plenary.nvim',
       'nvim-telescope/telescope.nvim',
