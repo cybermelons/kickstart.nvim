@@ -42,7 +42,7 @@ local function generate_uuid()
 end
 
 local add_plugin_snippets = function()
-  require("luasnip.loaders.from_snipmate").lazy_load()
+  require('luasnip.loaders.from_snipmate').lazy_load()
 end
 
 local add_statemachine_snippet = function()
@@ -548,7 +548,7 @@ local configure_lsp = function()
     -- pyright = {},
     -- rust_analyzer = {},
     ts_ls = {
-      root_dir = require('lspconfig').util.root_pattern("package.json"),
+      root_dir = require('lspconfig').util.root_pattern 'package.json',
     },
     pylsp = {},
     -- html = { filetypes = { 'html', 'twig', 'hbs'} },
@@ -634,30 +634,29 @@ local configure_lsp = function()
     end,
   }
 
+  require('lspconfig').ts_ls.setup {
+    on_attach = function(client, bufnr)
+      on_attach(client, bufnr)
+      vim.keymap.set('n', '<leader>ro', function()
+        vim.lsp.buf.execute_command {
+          command = '_typescript.organizeImports',
+          arguments = { vim.fn.expand '%:p' },
+        }
+      end, { buffer = bufnr, remap = false })
+    end,
+    root_dir = function(filename, bufnr)
+      local denoRootDir = require('lspconfig').util.root_pattern('deno.json', 'deno.json')(filename)
+      if denoRootDir then
+        -- print('this seems to be a deno project; returning nil so that tsserver does not attach');
+        return nil
+        -- else
+        -- print('this seems to be a ts project; return root dir based on package.json')
+      end
 
-require('lspconfig').ts_ls.setup({
-  on_attach = function (client, bufnr)
-    on_attach(client, bufnr);
-    vim.keymap.set('n', '<leader>ro', function()
-      vim.lsp.buf.execute_command({
-        command = "_typescript.organizeImports",
-        arguments = { vim.fn.expand("%:p") }
-      })
-    end, { buffer = bufnr,  remap = false });
-  end,
-  root_dir = function (filename, bufnr)
-    local denoRootDir = require('lspconfig').util.root_pattern("deno.json", "deno.json")(filename);
-    if denoRootDir then
-      -- print('this seems to be a deno project; returning nil so that tsserver does not attach');
-      return nil;
-    -- else
-      -- print('this seems to be a ts project; return root dir based on package.json')
-    end
-
-    return require('lspconfig').util.root_pattern("package.json")(filename);
-  end,
-  single_file_support = false,
-})
+      return require('lspconfig').util.root_pattern 'package.json'(filename)
+    end,
+    single_file_support = false,
+  }
 end
 
 -- Godot setup function
@@ -892,67 +891,91 @@ require('lazy').setup({
   },
 
   {
-    "git@github.com:cybermelons/nzk.nvim",
+    'git@github.com:cybermelons/nzk.nvim',
     dependencies = {
       'nvim-lua/plenary.nvim',
       'nvim-telescope/telescope.nvim',
-      'renerocksai/telekasten.nvim',
+      {
+        'nvim-telekasten/telekasten.nvim',
+
+        opts = function()
+          -- Determine the correct notes directory based on the OS
+          local home_dir
+          if vim.loop.os_uname().sysname == 'Windows_NT' then
+            home_dir = 'C:/Users/cybermelon/notes' -- Replace `YourUsername` with your actual username
+          else
+            home_dir = vim.fn.expand '~/notes'
+          end
+          return {
+            home = home_dir,
+            auto_set_filetype = true, -- Set filetype to telekasten automatically
+            dailies = 'daily', -- Subdirectory for daily notes
+            weeklies = 'weekly', -- Subdirectory for weekly notes
+            templates = 'templates', -- Subdirectory for templates
+            extension = '.md', -- Use .md files for markdown notes
+            follow_creates_nonexisting = true, -- Automatically create files when following markdown links
+            -- Use markdown-style links instead of wikilinks
+            plug_into_calendar = false, -- Disable calendar integration if not needed
+            use_wiki_style = false, -- Use markdown links like `[link text](path)`
+          }
+        end,
+      },
     },
     config = function()
       require('nzk').setup()
     end,
-    ft = {'markdown'},
+    ft = { 'markdown' },
     version = false,
   },
   {
-  "yetone/avante.nvim",
-  event = "VeryLazy",
-  lazy = false,
-  version = false, -- set this if you want to always pull the latest change
-  opts = {
-        -- recommended settings
-          provider = "claude",
-  claude = {
-    endpoint = "https://api.anthropic.com",
-    model = "claude-3-5-sonnet-20240620",
-    temperature = 0,
-    max_tokens = 8100,
-  },
-  -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
-  build = "make",
-  -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
-  dependencies = {
-    "stevearc/dressing.nvim",
-    "nvim-lua/plenary.nvim",
-    "MunifTanjim/nui.nvim",
-    --- The below dependencies are optional,
-    "nvim-tree/nvim-web-devicons", -- or echasnovski/mini.icons
-    --"zbirenbaum/copilot.lua", -- for providers='copilot'
-    {
-      -- support for image pasting
-      "HakonHarnes/img-clip.nvim",
-      event = "VeryLazy",
-        default = {
-          embed_image_as_base64 = false,
-          prompt_for_file_name = false,
-          drag_and_drop = {
-            insert_mode = true,
+    'yetone/avante.nvim',
+    event = 'VeryLazy',
+    lazy = false,
+    version = false, -- set this if you want to always pull the latest change
+    opts = {
+      -- recommended settings
+      provider = 'claude',
+      claude = {
+        endpoint = 'https://api.anthropic.com',
+        model = 'claude-3-5-sonnet-20240620',
+        temperature = 0,
+        max_tokens = 8100,
+      },
+      -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
+      build = 'make',
+      -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
+      dependencies = {
+        'stevearc/dressing.nvim',
+        'nvim-lua/plenary.nvim',
+        'MunifTanjim/nui.nvim',
+        --- The below dependencies are optional,
+        'nvim-tree/nvim-web-devicons', -- or echasnovski/mini.icons
+        --"zbirenbaum/copilot.lua", -- for providers='copilot'
+        {
+          -- support for image pasting
+          'HakonHarnes/img-clip.nvim',
+          event = 'VeryLazy',
+          default = {
+            embed_image_as_base64 = false,
+            prompt_for_file_name = false,
+            drag_and_drop = {
+              insert_mode = true,
+            },
+            -- required for Windows users
+            use_absolute_path = true,
           },
-          -- required for Windows users
-          use_absolute_path = true,
         },
       },
-    },
-    {
-      -- Make sure to set this up properly if you have lazy=true
-      'MeanderingProgrammer/render-markdown.nvim',
-      opts = {
-        file_types = { "markdown", "Avante" },
+      {
+        -- Make sure to set this up properly if you have lazy=true
+        'MeanderingProgrammer/render-markdown.nvim',
+        opts = {
+          file_types = { 'markdown', 'Avante' },
+        },
+        ft = { 'markdown', 'Avante' },
       },
-      ft = { "markdown", "Avante" },
     },
   },
-},
 
   {
     'ahmedkhalf/project.nvim',
@@ -1925,7 +1948,6 @@ vim.o.completeopt = 'menuone,noselect'
 -- NOTE: You should make sure your terminal supports this
 vim.o.termguicolors = true
 
-
 -- overridden by ez-guifont, so commenting out.
 -- vim.o.guifont = 'CaskaydiaCove Nerd Font:h14'
 
@@ -1994,7 +2016,6 @@ vim.api.nvim_create_autocmd({ 'BufEnter' }, {
     vim.o.number = false
   end,
 })
-
 
 -- Set shiftwidth for everything to 2
 vim.api.nvim_create_autocmd({ 'BufEnter' }, {
