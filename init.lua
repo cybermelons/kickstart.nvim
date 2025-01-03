@@ -907,6 +907,7 @@ require('lazy').setup({
       { mode = { 'n' }, '<leader>zb', '<cmd>Telekasten show_backlinks<CR>' },
       { mode = { 'n' }, '<leader>zI', '<cmd>Telekasten insert_img_link<CR>' },
     },
+    enabled = false,
     opts = {
       home = '~/notes',
       auto_set_filetype = true, -- Set filetype to telekasten automatically
@@ -923,17 +924,25 @@ require('lazy').setup({
 
   {
     'git@github.com:cybermelons/nzk.nvim',
-    enabled = false,
+    enabled = true,
     dependencies = {
       'nvim-lua/plenary.nvim',
       'nvim-telescope/telescope.nvim',
-      'nvim-telekasten/telekasten.nvim',
     },
-    config = function()
-      require('nzk').setup()
-    end,
+    keys = {
+      {
+        '<leader>z',
+        function()
+          require('nzk.core.palet').command_palette()
+        end,
+        desc = 'Open n[z]k Command Palette',
+      },
+    },
     ft = { 'markdown' },
     version = false,
+    event = { 'BufReadPost', 'BufNewFile' }, -- Lazy load on relevant events
+    config = true,
+    branch = 'slim',
   },
   {
     'yetone/avante.nvim',
