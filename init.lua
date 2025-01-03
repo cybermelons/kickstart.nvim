@@ -891,35 +891,36 @@ require('lazy').setup({
   },
 
   {
+    'nvim-telekasten/telekasten.nvim',
+    opts = function()
+      -- Determine the correct notes directory based on the OS
+      local home_dir
+      if vim.loop.os_uname().sysname == 'Windows_NT' then
+        home_dir = 'C:/Users/cybermelon/notes' -- Replace `YourUsername` with your actual username
+      else
+        home_dir = vim.fn.expand '~/notes'
+      end
+      return {
+        home = home_dir,
+        auto_set_filetype = true, -- Set filetype to telekasten automatically
+        dailies = 'daily', -- Subdirectory for daily notes
+        weeklies = 'weekly', -- Subdirectory for weekly notes
+        templates = 'templates', -- Subdirectory for templates
+        extension = '.md', -- Use .md files for markdown notes
+        follow_creates_nonexisting = true, -- Automatically create files when following markdown links
+        -- Use markdown-style links instead of wikilinks
+        plug_into_calendar = false, -- Disable calendar integration if not needed
+        use_wiki_style = false, -- Use markdown links like `[link text](path)`
+      }
+    end,
+  },
+
+  {
     'git@github.com:cybermelons/nzk.nvim',
     dependencies = {
       'nvim-lua/plenary.nvim',
       'nvim-telescope/telescope.nvim',
-      {
-        'nvim-telekasten/telekasten.nvim',
-
-        opts = function()
-          -- Determine the correct notes directory based on the OS
-          local home_dir
-          if vim.loop.os_uname().sysname == 'Windows_NT' then
-            home_dir = 'C:/Users/cybermelon/notes' -- Replace `YourUsername` with your actual username
-          else
-            home_dir = vim.fn.expand '~/notes'
-          end
-          return {
-            home = home_dir,
-            auto_set_filetype = true, -- Set filetype to telekasten automatically
-            dailies = 'daily', -- Subdirectory for daily notes
-            weeklies = 'weekly', -- Subdirectory for weekly notes
-            templates = 'templates', -- Subdirectory for templates
-            extension = '.md', -- Use .md files for markdown notes
-            follow_creates_nonexisting = true, -- Automatically create files when following markdown links
-            -- Use markdown-style links instead of wikilinks
-            plug_into_calendar = false, -- Disable calendar integration if not needed
-            use_wiki_style = false, -- Use markdown links like `[link text](path)`
-          }
-        end,
-      },
+      'nvim-telekasten/telekasten.nvim',
     },
     config = function()
       require('nzk').setup()
