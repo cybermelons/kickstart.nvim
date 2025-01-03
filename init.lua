@@ -941,7 +941,9 @@ require('lazy').setup({
     ft = { 'markdown' },
     version = false,
     event = { 'BufReadPost', 'BufNewFile' }, -- Lazy load on relevant events
-    config = true,
+    opts = {
+      wiki_dir = '~/notes',
+    },
     branch = 'slim',
   },
   {
