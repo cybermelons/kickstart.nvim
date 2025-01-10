@@ -74,6 +74,57 @@ local add_statemachine_snippet = function()
   })
 
   ls.add_snippets('typescriptreact', {
+
+    -- useState hook
+    ls.s(
+      'us',
+      fmt(
+        [[
+  const [{}, set{}] = useState({})
+  ]],
+        { i(1), l(l._1:sub(1, 1):upper() .. l._1:sub(2)), i(2) }
+      ),
+      { descr = 'useState hook' }
+    ),
+
+    -- useEffect hook
+    ls.s(
+      'ue',
+      fmt(
+        [[
+  useEffect(() => {{
+   {}
+  }}, [{}])
+  ]],
+        { i(1), i(2) }
+      ),
+      { descr = 'useEffect hook' }
+    ),
+
+    -- Try-catch
+    ls.s(
+      'errtoast',
+      fmt(
+        [[
+  try {{
+   {}
+  }} catch (e) {{
+   const msg = `${e.message}`
+   console.error()
+   toast({
+     description: error.message,
+     variant: "destructive",
+   });
+   {}
+  }}
+  ]],
+        { i(1), i(2) }
+      ),
+      { descr = 'Try-catch block' }
+    ),
+  })
+
+  ls.add_snippets('typescriptreact', {
     s(
       {
         trig = 'fcp=',
@@ -107,109 +158,6 @@ local add_statemachine_snippet = function()
     ---------------------------------------------
     s(
       {
-        trig = 'fctnodefault=',
-        ---------------------------------------------
-        dscr = 'Function Component with props AND type definition',
-      },
-      ---------------------------------------------
-      -- Nodes
-      fmt(
-        [[
-    type [name]Props = {
-    }
-    function [name](props: [name]Props) {
-      return (
-        <>
-        [content]
-        </>
-      )
-    }
-    []
-    ]],
-        {
-          name = i(1),
-          content = i(2),
-          i(0),
-        },
-        {
-          delimiters = '[]',
-          repeat_duplicates = true,
-        }
-      )
-    ),
-    ---------------------------------------------
-    s(
-      {
-        trig = 'fctchildrennodefault=',
-        ---------------------------------------------
-        dscr = 'Function Component with chilren',
-      },
-      ---------------------------------------------
-      -- Nodes
-      fmt(
-        [[
-    type [name]Props = {
-      children?: React.ReactNode
-    }
-    function [name]({children}: [name]Props) {
-      return (
-        <>
-        [content]
-        {children}
-        </>
-      )
-    }
-    []
-    ]],
-        {
-          name = i(1),
-          content = i(2),
-          i(0),
-        },
-        {
-          delimiters = '[]',
-          repeat_duplicates = true,
-        }
-      )
-    ),
-    ---------------------------------------------
-    s(
-      {
-        trig = 'fctchildren=',
-        ---------------------------------------------
-        dscr = 'Function Component with children, with export default',
-      },
-      ---------------------------------------------
-      -- Nodes
-      fmt(
-        [[
-    type [name]Props = {
-      children?: React.ReactNode
-    }
-    function [name]({children}: [name]Props) {
-      return (
-        <>
-        [content]
-        {children}
-        </>
-      )
-    }
-    []
-    ]],
-        {
-          name = i(1),
-          content = i(2),
-          i(0),
-        },
-        {
-          delimiters = '[]',
-          repeat_duplicates = true,
-        }
-      )
-    ),
-    ---------------------------------------------
-    s(
-      {
         trig = 'fct=',
         ---------------------------------------------
         dscr = 'Function Component with props AND type definition, with export default',
@@ -218,13 +166,15 @@ local add_statemachine_snippet = function()
       -- Nodes
       fmt(
         [[
+    import type { ReactNode } from "react";
     type [name]Props = {
+    children: ReactNode
     }
     export default function [name]({}: [name]Props) {
       return (
-        <>
+        <div>
         [content]
-        </>
+        </div>
       )
     }
     []
