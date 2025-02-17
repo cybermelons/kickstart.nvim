@@ -2042,11 +2042,6 @@ end
 
 -- Set up the keymapping (change the key combination as needed)
 vim.keymap.set('n', '<leader>rd', DumpRepoContents, { desc = 'Dump repository to wiki file' })
-vim.api.nvim_create_autocmd({ 'BufRead', 'BufEnter', 'BufWinEnter' }, {
-  pattern = { '*.astro' },
-  callback = function()
-    vim.bo.filetype = 'astro'
-  end,
-})
+
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
