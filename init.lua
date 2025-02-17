@@ -109,9 +109,9 @@ local add_statemachine_snippet = function()
   try {{
    {}
   }} catch (e) {{
-   const msg = `${e.message}`
+   const msg = `${{e.message}}`
    console.error()
-   toast({
+   toast({{}
      description: error.message,
      variant: "destructive",
    });
@@ -120,7 +120,7 @@ local add_statemachine_snippet = function()
   ]],
         { i(1), i(2) }
       ),
-      { descr = 'Try-catch block' }
+      { descr = 'try-catch block with an error toast' }
     ),
   })
 
@@ -493,6 +493,9 @@ local configure_lsp = function()
   --  If you want to override the default filetypes that your language server will attach to you can
   --  define the property 'filetypes' to the map in question.
   local servers = {
+    astro = {
+      filetypes = { 'astro' },
+    },
     clangd = {},
     -- gopls = {},
     -- pyright = {},
@@ -515,7 +518,6 @@ local configure_lsp = function()
 
     --denols = { },
     tailwindcss = {},
-    astro = {},
     svelte = {},
     marksman = {
       filetypes = { 'md', 'markdown', 'mdx', 'mdown' },
@@ -561,14 +563,14 @@ local configure_lsp = function()
         on_attach = on_attach,
         settings = servers[server_name],
         filetypes = (servers[server_name] or {}).filetypes,
-        -- root_dir = (servers[server_name] or {}).root_dir,
+        root_dir = (servers[server_name] or {}).root_dir,
       }
     end,
   }
 
   require('lspconfig').gdscript.setup {
     capabilities = capabilities,
-    on_attach = on_attach,
+    -- on_attach = on_attach,
     -- NOTE: for whatever reason, vim.lsp.rpc.connect() doesn't work with gdscript
     cmd = { 'netcat', 'localhost', '6005' },
     filetypes = { 'gd', 'gdscript', 'gdscript3' },
@@ -585,15 +587,15 @@ local configure_lsp = function()
   }
 
   require('lspconfig').ts_ls.setup {
-    on_attach = function(client, bufnr)
-      on_attach(client, bufnr)
-      vim.keymap.set('n', '<leader>ro', function()
-        vim.lsp.buf.execute_command {
-          command = '_typescript.organizeImports',
-          arguments = { vim.fn.expand '%:p' },
-        }
-      end, { buffer = bufnr, remap = false })
-    end,
+    -- on_attach = function(client, bufnr)
+    --   on_attach(client, bufnr)
+    --   vim.keymap.set('n', '<leader>ro', function()
+    --     vim.lsp.buf.execute_command {
+    --       command = '_typescript.organizeImports',
+    --       arguments = { vim.fn.expand '%:p' },
+    --     }
+    --   end, { buffer = bufnr, remap = false })
+    --end,
     root_dir = function(filename, bufnr)
       local denoRootDir = require('lspconfig').util.root_pattern('deno.json', 'deno.json')(filename)
       if denoRootDir then
@@ -632,12 +634,12 @@ local setup_godot_dap = function()
 end
 
 local treesitter_opts = {
-  ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash' },
+  ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash', 'astro' },
 
-  -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
-  auto_install = false,
+  -- autoinstall languages that are not installed. defaults to false (but you can change for yourself!)
+  auto_install = true,
   ignore_install = {},
-  sync_install = false,
+  sync_install = true,
   modules = {},
 
   highlight = { enable = true },
@@ -648,15 +650,15 @@ local treesitter_opts = {
       init_selection = '<leader>v',
       node_incremental = '<leader>v',
       scope_incremental = '<c-s>',
-      node_decremental = '<M-space>',
+      node_decremental = '<m-space>',
     },
   },
   textobjects = {
     select = {
       enable = true,
-      lookahead = true, -- Automatically jump forward to textobj, similar to targets.vim
+      lookahead = true, -- automatically jump forward to textobj, similar to targets.vim
       keymaps = {
-        -- You can use the capture groups defined in textobjects.scm
+        -- you can use the capture groups defined in textobjects.scm
         ['aa'] = '@parameter.outer',
         ['ia'] = '@parameter.inner',
         ['af'] = '@function.outer',
@@ -673,7 +675,7 @@ local treesitter_opts = {
         [']]'] = '@class.outer',
       },
       goto_next_end = {
-        [']M'] = '@function.outer',
+        [']m'] = '@function.outer',
         [']['] = '@class.outer',
       },
       goto_previous_start = {
@@ -681,7 +683,7 @@ local treesitter_opts = {
         ['[['] = '@class.outer',
       },
       goto_previous_end = {
-        ['[M'] = '@function.outer',
+        ['[m'] = '@function.outer',
         ['[]'] = '@class.outer',
       },
     },
@@ -691,7 +693,7 @@ local treesitter_opts = {
         ['<leader>a'] = '@parameter.inner',
       },
       swap_previous = {
-        ['<leader>A'] = '@parameter.inner',
+        ['<leader>a'] = '@parameter.inner',
       },
     },
   },
@@ -872,30 +874,30 @@ require('lazy').setup({
     },
   },
 
-  {
-    'git@github.com:cybermelons/nzk.nvim',
-    enabled = true,
-    dependencies = {
-      'nvim-lua/plenary.nvim',
-      'nvim-telescope/telescope.nvim',
-    },
-    keys = {
-      {
-        '<leader>z',
-        function()
-          require('nzk.core.palet').command_palette()
-        end,
-        desc = 'Open n[z]k Command Palette',
-      },
-    },
-    ft = { 'markdown' },
-    version = false,
-    event = { 'BufReadPost', 'BufNewFile' }, -- Lazy load on relevant events
-    opts = {
-      wiki_dir = '~/notes',
-    },
-    branch = 'slim',
-  },
+  -- {
+  --   'git@github.com:cybermelons/nzk.nvim',
+  --   enabled = true,
+  --   dependencies = {
+  --     'nvim-lua/plenary.nvim',
+  --     'nvim-telescope/telescope.nvim',
+  --   },
+  --   keys = {
+  --     {
+  --       '<leader>z',
+  --       function()
+  --         require('nzk.core.palet').command_palette()
+  --       end,
+  --       desc = 'Open n[z]k Command Palette',
+  --     },
+  --   },
+  --   ft = { 'markdown' },
+  --   version = false,
+  --   event = { 'BufReadPost', 'BufNewFile' }, -- Lazy load on relevant events
+  --   opts = {
+  --     wiki_dir = '~/notes',
+  --   },
+  --   branch = 'slim',
+  -- },
   {
     'yetone/avante.nvim',
     event = 'VeryLazy',
@@ -1164,6 +1166,7 @@ require('lazy').setup({
         -- Use the "_" filetype to run formatters on filetypes that don't
         -- have other formatters configured.
         ['_'] = { 'trim_whitespace' },
+        ['astro'] = { 'prettierd', 'prettier' },
         ['javascript'] = { 'prettierd', 'prettier' },
         ['javascriptreact'] = { 'prettierd', 'prettier' },
         ['typescript'] = { 'prettierd', 'prettier' },
@@ -1994,6 +1997,47 @@ vim.api.nvim_create_autocmd({ 'BufEnter' }, {
   end,
 })
 
+-- Function to get the git repository name
+function GetRepoName()
+  -- Get the git root directory
+  local handle = io.popen 'git rev-parse --show-toplevel'
+  if handle == nil then
+    return nil
+  end
+  local result = handle:read '*a'
+  handle:close()
+
+  -- Extract the repository name from the path
+  local repo_name = string.match(result, '([^/]+)\n$')
+  return repo_name
+end
+
+-- Function to dump repository contents
+function DumpRepoContents()
+  local repo_name = GetRepoName()
+  if repo_name == nil then
+    vim.notify('Not in a git repository', vim.log.levels.ERROR)
+    return
+  end
+
+  -- Construct the output filename
+  local output_file = repo_name .. '-wiki.txt'
+
+  -- Execute your shell script with the output file
+  local cmd = string.format('~/bin/cat_git_repo.sh -o %s -e "*.xml" -e "*.webp"', output_file)
+  vim.fn.system(cmd)
+
+  -- Notify user of completion
+  vim.notify('Repository dumped to ' .. output_file, vim.log.levels.INFO)
+end
+
+-- Set up the keymapping (change the key combination as needed)
+vim.keymap.set('n', '<leader>rd', DumpRepoContents, { desc = 'Dump repository to wiki file' })
+vim.api.nvim_create_autocmd({ 'BufRead', 'BufEnter', 'BufWinEnter' }, {
+  pattern = { '*.astro' },
+  callback = function()
+    vim.bo.filetype = 'astro'
+  end,
+})
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
---
