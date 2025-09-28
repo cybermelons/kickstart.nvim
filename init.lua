@@ -333,6 +333,13 @@ local configure_telescope = function()
       current_dir = vim.fn.fnamemodify(current_file, ':h')
     end
 
+    -- Check if we're in a worktree
+    local git_dir = vim.fn.system('git -C ' .. vim.fn.escape(current_dir, ' ') .. ' rev-parse --git-dir 2>/dev/null'):gsub('\n', '')
+    if git_dir:match('%.git/worktrees/') then
+      -- We're in a worktree, use the worktree root (current working directory)
+      return cwd
+    end
+
     -- Find the Git root directory from the current file's path
     local git_root = vim.fn.systemlist('git -C ' .. vim.fn.escape(current_dir, ' ') .. ' rev-parse --show-toplevel')[1]
     if vim.v.shell_error ~= 0 then
@@ -380,8 +387,18 @@ local configure_telescope = function()
       return vim.v.shell_error == 0
     end
     local function get_git_root()
-      local dot_git_path = vim.fn.finddir('.git', '.;')
-      return vim.fn.fnamemodify(dot_git_path, ':h')
+      -- For worktrees, use the current working directory or the worktree root
+      local current_dir = vim.fn.getcwd()
+      -- Check if we're in a worktree
+      local git_dir = vim.fn.system('git rev-parse --git-dir 2>/dev/null'):gsub('\n', '')
+      if git_dir:match('%.git/worktrees/') then
+        -- We're in a worktree, use current directory
+        return current_dir
+      else
+        -- Regular git repo, find the root
+        local dot_git_path = vim.fn.finddir('.git', '.;')
+        return vim.fn.fnamemodify(dot_git_path, ':h')
+      end
     end
     local opts = {}
     if is_git_repo() then
@@ -980,6 +997,17 @@ require('lazy').setup({
         '.hg',
         '.svn',
       }
+      -- Use a custom root pattern finder that respects worktrees
+      opts.root_dir = function()
+        local current_dir = vim.fn.getcwd()
+        local git_dir = vim.fn.system('git rev-parse --git-dir 2>/dev/null'):gsub('\n', '')
+        if git_dir:match('%.git/worktrees/') then
+          -- We're in a worktree, use current directory as root
+          return current_dir
+        end
+        -- Otherwise, use default behavior
+        return nil
+      end
       require('project_nvim').setup(opts)
       require('telescope').load_extension 'projects'
     end,
@@ -1920,8 +1948,8 @@ vim.o.updatetime = 250
 vim.o.timeoutlen = 300
 
 -- Auto-cd into the dir of file
--- disabled because it messes up plugins, like git write, neotree
-vim.o.autochdir = true
+-- disabled because it messes up plugins, like git write, neotree, and git worktrees
+vim.o.autochdir = false
 
 -- Set completeopt to have a better completion experience
 vim.o.completeopt = 'menuone,noselect'
@@ -2042,6 +2070,26 @@ end
 
 -- Set up the keymapping (change the key combination as needed)
 vim.keymap.set('n', '<leader>rd', DumpRepoContents, { desc = 'Dump repository to wiki file' })
+
+-- Disable auto-commenting when pressing o/O
+vim.api.nvim_create_autocmd("BufEnter", {
+  callback = function()
+    vim.opt.formatoptions:remove { "c", "r", "o" }
+  end,
+})
+
+-- Autoindent astro
+-- vim.api.nvim_create_autocmd({ "FileType" }, {
+--   pattern = { "astro" },
+--   callback = function()
+--     vim.bo.expandtab = true
+--     vim.bo.shiftwidth = 2
+--     vim.bo.softtabstop = 2
+--     vim.bo.tabstop = 2
+--     vim.bo.smartindent = true
+--     vim.bo.autoindent = true
+--   end,
+-- })
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
