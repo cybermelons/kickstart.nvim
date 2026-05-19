@@ -1195,11 +1195,9 @@ require('lazy').setup({
 
   {
     'nanozuki/tabby.nvim',
-
-    event = 'VimEnter',
+    event = 'VeryLazy',
     dependencies = 'nvim-tree/nvim-web-devicons',
     opts = {},
-    enabled = true,
   },
 
   {
@@ -1258,12 +1256,11 @@ require('lazy').setup({
   },
 
   {
-    'echasnovski/mini.nvim',
+    'echasnovski/mini.animate',
     version = '*',
-    config = function()
-      require('mini.animate').setup()
-    end,
-    -- enable only if neovide isn't available
+    event = 'VeryLazy',
+    opts = {},
+    -- neovide has built-in cursor/scroll animation
     enabled = not vim.g.neovide,
   },
 
@@ -1280,7 +1277,7 @@ require('lazy').setup({
     -- Set lualine as statusline
     'nvim-lualine/lualine.nvim',
     -- See `:help lualine.txt`
-    event = 'VimEnter',
+    event = 'VeryLazy',
     dependencies = { 'folke/tokyonight.nvim' },
     opts = function()
       require('lazy').load { plugins = { 'tokyonight.nvim' } }
@@ -1309,7 +1306,7 @@ require('lazy').setup({
     -- See `:help ibl`
     main = 'ibl',
     opts = {},
-    event = 'VimEnter',
+    event = { 'BufReadPost', 'BufNewFile' },
   },
 
   {
@@ -1502,6 +1499,7 @@ require('lazy').setup({
   },
   {
     'vhyrro/luarocks.nvim',
+    lazy = true, -- loaded only when neorg pulls it in
     config = true,
   },
 
@@ -1672,6 +1670,7 @@ vim.keymap.set('n', '[n', function() vim.diagnostic.jump { count = -1 } end, { d
 vim.keymap.set('n', ']n', function() vim.diagnostic.jump { count = 1 } end, { desc = 'Go to next diagnostic message' })
 vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Open floating diagnostic message' })
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostics list' })
+vim.keymap.set('n', '<leader>L', '<cmd>Lazy<cr>', { desc = 'Open [L]azy plugin manager' })
 
 -- Comment with Ctrl-/
 vim.keymap.set('n', '<C-/>', '<Plug>(comment_toggle_linewise_current)', { desc = '[Ctrl-/] Comment toggle linewise' })
