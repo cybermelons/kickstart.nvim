@@ -516,7 +516,10 @@ local configure_lsp = function()
   }
 
   local capabilities = vim.lsp.protocol.make_client_capabilities()
-  capabilities = require('cmp_nvim_lsp').default_capabilities(capabilities)
+  local ok_blink, blink = pcall(require, 'blink.cmp')
+  if ok_blink then
+    capabilities = blink.get_lsp_capabilities(capabilities)
+  end
 
   vim.lsp.config('*', {
     capabilities = capabilities,
@@ -647,70 +650,14 @@ local treesitter_ensure_installed = {
   'vimdoc', 'vim', 'bash', 'astro', 'query', 'markdown', 'markdown_inline',
 }
 
-local configure_cmp = function()
-  -- [[ Configure nvim-cmp ]]
-  -- See `:help cmp`
-  local cmp = require 'cmp'
+-- LuaSnip post-setup: load snippets from vim-snippets / astro-snippets and
+-- register any custom snippets. Invoked from LuaSnip's plugin config.
+local configure_luasnip = function()
   local luasnip = require 'luasnip'
-  require('luasnip.loaders.from_vscode').lazy_load()
   luasnip.config.setup {}
+  require('luasnip.loaders.from_vscode').lazy_load()
+  require('luasnip.loaders.from_snipmate').lazy_load()
 
-  local has_words_before = function()
-    if vim.api.nvim_buf_get_option(0, 'buftype') == 'prompt' then
-      return false
-    end
-    local line, col = unpack(vim.api.nvim_win_get_cursor(0))
-    return col ~= 0 and vim.api.nvim_buf_get_text(0, line - 1, 0, line - 1, col, {})[1]:match '^%s*$' == nil
-  end
-
-  cmp.setup {
-    snippet = {
-      expand = function(args)
-        luasnip.lsp_expand(args.body)
-      end,
-    },
-    completion = {
-      completeopt = 'menu,menuone,noinsert',
-    },
-    mapping = cmp.mapping.preset.insert {
-      ['<C-n>'] = cmp.mapping.select_next_item(),
-      ['<C-p>'] = cmp.mapping.select_prev_item(),
-      ['<C-b>'] = cmp.mapping.scroll_docs(-4),
-      ['<C-f>'] = cmp.mapping.scroll_docs(4),
-      ['<C-Space>'] = cmp.mapping.complete {},
-      ['<CR>'] = cmp.mapping.confirm {
-        behavior = cmp.ConfirmBehavior.Replace,
-        select = true,
-      },
-      ['<Tab>'] = cmp.mapping(function(fallback)
-        if cmp.visible() and has_words_before() then
-          -- if cmp.visible() then
-          cmp.select_next_item()
-        elseif luasnip.expand_or_locally_jumpable() then
-          luasnip.expand_or_jump()
-        else
-          fallback()
-        end
-      end, { 'i', 's' }),
-      ['<S-Tab>'] = cmp.mapping(function(fallback)
-        if cmp.visible() then
-          cmp.select_prev_item()
-        elseif luasnip.locally_jumpable(-1) then
-          luasnip.jump(-1)
-        else
-          fallback()
-        end
-      end, { 'i', 's' }),
-    },
-    sources = {
-      { name = 'copilot' },
-      { name = 'nvim_lsp' },
-      { name = 'luasnip' },
-      { name = 'path' },
-    },
-  }
-
-  -- Custom snippets in luasnip here
   add_statemachine_snippet()
   --add_plugin_snippets()
 end
@@ -786,24 +733,61 @@ require('lazy').setup({
   },
 
   {
-    -- Autocompletion
-    'hrsh7th/nvim-cmp',
-    event = 'InsertEnter', -- TODO: nvim-cmp lazy loading
+    'L3MON4D3/LuaSnip',
+    lazy = true,
+    build = (function()
+      if vim.fn.has 'win32' == 1 or vim.fn.executable 'make' == 0 then return nil end
+      return 'make install_jsregexp'
+    end)(),
     dependencies = {
-      -- Snippet Engine & its associated nvim-cmp source
-      'L3MON4D3/LuaSnip',
-      'saadparwaiz1/cmp_luasnip',
-
-      -- Adds LSP completion capabilities
-      'hrsh7th/cmp-nvim-lsp',
-      'hrsh7th/cmp-path',
-
-      -- Adds a number of user-friendly snippets
-      -- 'rafamadriz/friendly-snippets',
       'honza/vim-snippets',
       'louiss0/astro-snippets',
     },
-    config = configure_cmp,
+    config = function()
+      configure_luasnip()
+    end,
+  },
+
+  {
+    'saghen/blink.cmp',
+    event = 'InsertEnter',
+    version = '*', -- use prebuilt fuzzy matcher binary from release
+    dependencies = {
+      'L3MON4D3/LuaSnip',
+      { 'giuxtaposition/blink-cmp-copilot', dependencies = { 'zbirenbaum/copilot.lua' } },
+    },
+    ---@module 'blink.cmp'
+    ---@type blink.cmp.Config
+    opts = {
+      -- 'default' = Ctrl-y to confirm, Tab/Shift-Tab to navigate, Ctrl-n/p alternates.
+      -- 'super-tab' = Tab confirms and snippet-jumps; falls back to native Tab.
+      keymap = {
+        preset = 'super-tab',
+        ['<C-Space>'] = { 'show', 'show_documentation', 'hide_documentation' },
+        ['<C-b>'] = { 'scroll_documentation_up', 'fallback' },
+        ['<C-f>'] = { 'scroll_documentation_down', 'fallback' },
+        ['<CR>'] = { 'accept', 'fallback' },
+      },
+      snippets = { preset = 'luasnip' },
+      sources = {
+        default = { 'copilot', 'lsp', 'path', 'snippets', 'buffer' },
+        providers = {
+          copilot = {
+            name = 'copilot',
+            module = 'blink-cmp-copilot',
+            score_offset = 100,
+            async = true,
+          },
+        },
+      },
+      completion = {
+        documentation = { auto_show = true, auto_show_delay_ms = 200 },
+        menu = { border = 'rounded' },
+      },
+      signature = { enabled = true },
+      fuzzy = { implementation = 'prefer_rust_with_warning' },
+    },
+    opts_extend = { 'sources.default' },
   },
 
   {
@@ -1182,30 +1166,12 @@ require('lazy').setup({
     'zbirenbaum/copilot.lua',
     cmd = 'Copilot',
     event = 'InsertEnter',
+    -- blink-cmp-copilot drives completion; disable copilot.lua's own ghost-text and panel.
     opts = {
       filetypes = {},
+      panel = { enabled = false },
+      suggestion = { enabled = false },
     },
-    config = function()
-      -- vim.g.copilot_filetypes = {markdown = false, norg = false}
-    end,
-  },
-
-  {
-    'zbirenbaum/copilot-cmp',
-    event = 'InsertEnter',
-    dependencies = {
-      'zbirenbaum/copilot.lua',
-    },
-    config = function()
-      require('copilot_cmp').setup {
-        panel = {
-          enabled = false,
-        },
-        suggestion = {
-          enabled = false,
-        },
-      }
-    end,
   },
 
   {
