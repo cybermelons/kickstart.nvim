@@ -1,3 +1,23 @@
+-- ============================================================================
+-- External binaries this config expects on $PATH (install per-platform):
+--
+--   Required everywhere:    git, neovim (>= 0.11 recommended)
+--   Lazygit (<leader>lg):   lazygit
+--   Node-based LSPs:        node              (ts_ls, astro, tailwindcss,
+--                                              svelte, bashls, jsonls, yamlls,
+--                                              html, marksman)
+--   Python LSP:             python3 + pip     (pylsp)
+--   Formatters (conform):   prettier/prettierd (npm), stylua, codespell, gdformat
+--   Godot LSP:              netcat            (or ncat — Windows)
+--   Telescope fzf-native:   make + cc         (built once at install)
+--
+--   macOS:    brew install git lazygit node python stylua codespell
+--   Windows:  scoop install git lazygit nodejs python stylua make gcc ncat
+--   Linux:    apt/dnf install git lazygit nodejs python3 build-essential
+--
+--   Missing binaries are non-fatal — the relevant feature just no-ops silently.
+-- ============================================================================
+
 -- See `:help mapleader`
 --  NOTE: Must happen before plugins are required (otherwise wrong leader will be used)
 vim.g.mapleader = ' '
@@ -284,19 +304,19 @@ local configure_telescope = function()
     end
 
     -- Check if we're in a worktree
-    local git_dir = vim.fn.system('git -C ' .. vim.fn.escape(current_dir, ' ') .. ' rev-parse --git-dir 2>/dev/null'):gsub('\n', '')
-    if git_dir:match('%.git/worktrees/') then
+    local git_dir_res = vim.system({ 'git', '-C', current_dir, 'rev-parse', '--git-dir' }, { text = true }):wait()
+    if git_dir_res.code == 0 and (git_dir_res.stdout or ''):match('%.git[/\\]worktrees[/\\]') then
       -- We're in a worktree, use the worktree root (current working directory)
       return cwd
     end
 
     -- Find the Git root directory from the current file's path
-    local git_root = vim.fn.systemlist('git -C ' .. vim.fn.escape(current_dir, ' ') .. ' rev-parse --show-toplevel')[1]
-    if vim.v.shell_error ~= 0 then
+    local root_res = vim.system({ 'git', '-C', current_dir, 'rev-parse', '--show-toplevel' }, { text = true }):wait()
+    if root_res.code ~= 0 then
       print 'Not a git repository. Searching on current working directory'
       return cwd
     end
-    return git_root
+    return (root_res.stdout or ''):gsub('[\r\n]+$', '')
   end
 
   -- Custom live_grep function to search in git root
@@ -333,22 +353,18 @@ local configure_telescope = function()
   -- This function is basically find_files() combined with git_files(). The appeal of this function over the default find_files() is that you can find files that are not tracked by git. Also, find_files() only finds files in the current directory but this function finds files regardless of your current directory as long as you're in the project directory.
   local find_files_from_project_git_root = function()
     local function is_git_repo()
-      vim.fn.system 'git rev-parse --is-inside-work-tree'
-      return vim.v.shell_error == 0
+      return vim.system({ 'git', 'rev-parse', '--is-inside-work-tree' }, { text = true }):wait().code == 0
     end
     local function get_git_root()
       -- For worktrees, use the current working directory or the worktree root
       local current_dir = vim.fn.getcwd()
       -- Check if we're in a worktree
-      local git_dir = vim.fn.system('git rev-parse --git-dir 2>/dev/null'):gsub('\n', '')
-      if git_dir:match('%.git/worktrees/') then
-        -- We're in a worktree, use current directory
+      local res = vim.system({ 'git', 'rev-parse', '--git-dir' }, { text = true }):wait()
+      if res.code == 0 and (res.stdout or ''):match('%.git[/\\]worktrees[/\\]') then
         return current_dir
-      else
-        -- Regular git repo, find the root
-        local dot_git_path = vim.fn.finddir('.git', '.;')
-        return vim.fn.fnamemodify(dot_git_path, ':h')
       end
+      local dot_git_path = vim.fn.finddir('.git', '.;')
+      return vim.fn.fnamemodify(dot_git_path, ':h')
     end
     local opts = {}
     if is_git_repo() then
@@ -502,14 +518,18 @@ local configure_lsp = function()
   local capabilities = vim.lsp.protocol.make_client_capabilities()
   capabilities = require('cmp_nvim_lsp').default_capabilities(capabilities)
 
+  vim.lsp.config('*', {
+    capabilities = capabilities,
+    on_attach = on_attach,
+  })
+
   for server_name, server_cfg in pairs(servers) do
-    require('lspconfig')[server_name].setup {
-      capabilities = capabilities,
-      on_attach = on_attach,
+    vim.lsp.config(server_name, {
       settings = server_cfg,
       filetypes = server_cfg.filetypes,
       root_dir = server_cfg.root_dir,
-    }
+    })
+    vim.lsp.enable(server_name)
   end
 
   -- On-demand LSP install: when a filetype opens, install its server via mason
@@ -569,47 +589,33 @@ local configure_lsp = function()
     })
   end
 
-  require('lspconfig').gdscript.setup {
-    capabilities = capabilities,
-    -- on_attach = on_attach,
-    -- NOTE: for whatever reason, vim.lsp.rpc.connect() doesn't work with gdscript
-    cmd = { 'netcat', 'localhost', '6005' },
-    filetypes = { 'gd', 'gdscript', 'gdscript3' },
-    keys = {
-      {
-        '<leader>lspr',
-        '<cmd>LspRestart<cr>',
-        desc = '[LSP R]estart',
-      },
-    },
-    root_dir = function(fname)
-      return require('lspconfig').util.root_pattern('project.godot', '.git')(fname) or vim.fn.getcwd()
-    end,
-  }
+  -- gdscript LSP needs `netcat` (or `ncat` on Windows) on PATH; connects to running Godot editor
+  local nc = vim.fn.executable('netcat') == 1 and 'netcat' or (vim.fn.executable('ncat') == 1 and 'ncat' or nil)
+  if nc then
+    vim.lsp.config('gdscript', {
+      cmd = { nc, 'localhost', '6005' },
+      filetypes = { 'gd', 'gdscript', 'gdscript3' },
+      root_dir = function(_, on_dir)
+        on_dir(vim.fs.root(0, { 'project.godot', '.git' }) or vim.fn.getcwd())
+      end,
+    })
+    vim.lsp.enable('gdscript')
+  end
 
-  require('lspconfig').ts_ls.setup {
-    -- on_attach = function(client, bufnr)
-    --   on_attach(client, bufnr)
-    --   vim.keymap.set('n', '<leader>ro', function()
-    --     vim.lsp.buf.execute_command {
-    --       command = '_typescript.organizeImports',
-    --       arguments = { vim.fn.expand '%:p' },
-    --     }
-    --   end, { buffer = bufnr, remap = false })
-    --end,
-    root_dir = function(filename, bufnr)
-      local denoRootDir = require('lspconfig').util.root_pattern('deno.json', 'deno.json')(filename)
-      if denoRootDir then
-        -- print('this seems to be a deno project; returning nil so that tsserver does not attach');
-        return nil
-        -- else
-        -- print('this seems to be a ts project; return root dir based on package.json')
+  vim.lsp.config('ts_ls', {
+    root_dir = function(bufnr, on_dir)
+      local fname = vim.api.nvim_buf_get_name(bufnr)
+      -- Skip deno projects so tsserver doesn't attach there
+      if vim.fs.root(fname, { 'deno.json', 'deno.jsonc' }) then
+        return
       end
-
-      return require('lspconfig').util.root_pattern 'package.json'(filename)
+      local root = vim.fs.root(fname, { 'package.json' })
+      if root then
+        on_dir(root)
+      end
     end,
     single_file_support = false,
-  }
+  })
 end
 
 -- Godot setup function
@@ -1767,17 +1773,12 @@ vim.api.nvim_create_autocmd('FileType', {
 
 -- Function to get the git repository name
 function GetRepoName()
-  -- Get the git root directory
-  local handle = io.popen 'git rev-parse --show-toplevel'
-  if handle == nil then
+  local res = vim.system({ 'git', 'rev-parse', '--show-toplevel' }, { text = true }):wait()
+  if res.code ~= 0 then
     return nil
   end
-  local result = handle:read '*a'
-  handle:close()
-
-  -- Extract the repository name from the path
-  local repo_name = string.match(result, '([^/]+)\n$')
-  return repo_name
+  local root = (res.stdout or ''):gsub('[\r\n]+$', '')
+  return vim.fs.basename(root)
 end
 
 -- Function to dump repository contents
