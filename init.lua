@@ -27,15 +27,16 @@ vim.g.maplocalleader = ' '
 --    https://github.com/folke/lazy.nvim
 --    `:help lazy.nvim.txt` for more info
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
-if not vim.loop.fs_stat(lazypath) then
-  pcall(vim.fn.system, {
+local lazy_installed = vim.uv.fs_stat(lazypath) ~= nil
+if not lazy_installed then
+  lazy_installed = pcall(vim.fn.system, {
     'git', 'clone', '--filter=blob:none',
     'https://github.com/folke/lazy.nvim.git',
     '--branch=stable',
     lazypath,
-  })
+  }) and vim.uv.fs_stat(lazypath) ~= nil
 end
-if vim.loop.fs_stat(lazypath) then
+if lazy_installed then
   vim.opt.rtp:prepend(lazypath)
 end
 
@@ -720,23 +721,9 @@ end
 --
 --  You can also configure plugins after the setup call,
 --    as they will be available in your neovim runtime.
-if vim.loop.fs_stat(lazypath) then
+if lazy_installed then
 require('lazy').setup({
   -- NOTE: First, some plugins that don't require any configuration
-
-  -- Git related plugins
-  {
-    'tpope/vim-fugitive',
-    cmd = { 'Git', 'G', 'Gdiffsplit', 'Gblame', 'Gread', 'Gwrite', 'Glog' },
-  },
-
-  {
-    'tpope/vim-rhubarb',
-    cmd = { 'GBrowse' },
-    dependencies = {
-      'tpope/vim-fugitive',
-    },
-  },
 
   -- Detect tabstop and shiftwidth automatically
   {
@@ -1067,7 +1054,7 @@ require('lazy').setup({
   {
     -- Adds git related signs to the gutter, as well as utilities for managing changes
     'lewis6991/gitsigns.nvim',
-    event = 'VimEnter',
+    event = { 'BufReadPre', 'BufNewFile' },
     opts = {
       -- See `:help gitsigns.txt`
       signs = {
@@ -1325,7 +1312,6 @@ require('lazy').setup({
         'nvim-dap-ui',
         'mason',
         'lazy',
-        'fugitive',
       },
     }
     end,
@@ -1615,11 +1601,24 @@ require('lazy').setup({
   --
   --    For additional information see: https://github.com/folke/lazy.nvim#-structuring-your-plugins
   -- { import = 'custom.plugins' },
-  {
-    'nvim-telescope/telescope-fzf-native.nvim',
-    build = 'cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release && cmake --install build --prefix build',
+}, {
+  performance = {
+    rtp = {
+      -- Disable Neovim's bundled vim-era plugins we don't use; saves startup time.
+      disabled_plugins = {
+        'gzip',
+        'matchit',
+        'matchparen',
+        'netrwPlugin',
+        'rplugin',
+        'tarPlugin',
+        'tohtml',
+        'tutor',
+        'zipPlugin',
+      },
+    },
   },
-}, {})
+})
 end
 
 -- [[ Setting options ]]
