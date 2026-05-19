@@ -1,8 +1,3 @@
--- FIXME: crashing on q! sometimes. it's not the sessions... probably ShaDa file.
--- TODO: Dashboard projects don't load. consider a diff session manager
--- TODO: turn off diagnostics with a hydra toggle
--- TODO: add symbols tree
--- TODO: add bindings to show Norg as a window while i hold a key down
 -- See `:help mapleader`
 --  NOTE: Must happen before plugins are required (otherwise wrong leader will be used)
 vim.g.mapleader = ' '
@@ -13,23 +8,15 @@ vim.g.maplocalleader = ' '
 --    `:help lazy.nvim.txt` for more info
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
 if not vim.loop.fs_stat(lazypath) then
-  vim.fn.system {
-    'git',
-    'clone',
-    '--filter=blob:none',
+  pcall(vim.fn.system, {
+    'git', 'clone', '--filter=blob:none',
     'https://github.com/folke/lazy.nvim.git',
-    '--branch=stable', -- latest stable release
+    '--branch=stable',
     lazypath,
-  }
+  })
 end
-vim.opt.rtp:prepend(lazypath)
-
-local setup_window_keymaps = function()
-  -- map C-h/j/k/l to move windows
-  vim.api.nvim_set_keymap('n', '<C-h>', '<C-w>h', { noremap = true, silent = true })
-  vim.api.nvim_set_keymap('n', '<C-k>', '<C-w>k', { noremap = true, silent = true })
-  vim.api.nvim_set_keymap('n', '<C-j>', '<C-w>j', { noremap = true, silent = true })
-  vim.api.nvim_set_keymap('n', '<C-l>', '<C-w>l', { noremap = true, silent = true })
+if vim.loop.fs_stat(lazypath) then
+  vim.opt.rtp:prepend(lazypath)
 end
 
 -- A function to generate UUID
@@ -39,10 +26,6 @@ local function generate_uuid()
     local v = (c == 'x') and math.random(0, 0xf) or math.random(8, 0xb)
     return string.format('%x', v)
   end)
-end
-
-local add_plugin_snippets = function()
-  require('luasnip.loaders.from_snipmate').lazy_load()
 end
 
 local add_statemachine_snippet = function()
@@ -111,10 +94,10 @@ local add_statemachine_snippet = function()
   }} catch (e) {{
    const msg = `${{e.message}}`
    console.error()
-   toast({{}
+   toast({{
      description: error.message,
      variant: "destructive",
-   });
+   }});
    {}
   }}
   ]],
@@ -281,39 +264,6 @@ local configure_telescope = function()
       },
     },
   }
-
-  local function setup_search_and_replace()
-    local telescope = require 'telescope'
-    local actions = require 'telescope.actions'
-    local action_state = require 'telescope.actions.state'
-
-    telescope.setup {
-      defaults = {
-        mappings = {
-          i = {
-            ['<C-r>'] = function(prompt_bufnr)
-              local current_text = action_state.get_current_line()
-              local search_text = vim.fn.input('Search for: ', current_text)
-              local replace_text = vim.fn.input 'Replace with: '
-              if search_text ~= '' then
-                require('telescope.builtin').grep_string { search = search_text }
-                vim.schedule(function()
-                  local confirm = vim.fn.input 'Replace in all files? (y/n): '
-                  if confirm:lower() == 'y' then
-                    vim.cmd('%s/' .. search_text .. '/' .. replace_text .. '/g')
-                    print('Replaced "' .. search_text .. '" with "' .. replace_text .. '" in all files.')
-                  end
-                end)
-              end
-            end,
-          },
-        },
-      },
-    }
-
-    -- To invoke this search and replace functionality, you may bind it to a hotkey or command, like so:
-    vim.api.nvim_set_keymap('n', '<Leader>sr', ':Telescope live_grep<CR>', { noremap = true, silent = true })
-  end
 
   -- Enable telescope fzf native, if installed
   pcall(require('telescope').load_extension, 'fzf')
@@ -505,11 +455,6 @@ local configure_lsp = function()
     { '<leader>h', desc = 'Git [H]unk', mode = 'v' },
   }, { mode = 'v' })
 
-  require('which-key').add {
-    { '<leader>', group = 'VISUAL <leader>' },
-    { '<leader>h', desc = 'Git [H]unk' },
-  }
-
   -- Enable the following language servers
   --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
   --
@@ -519,80 +464,110 @@ local configure_lsp = function()
   --  If you want to override the default filetypes that your language server will attach to you can
   --  define the property 'filetypes' to the map in question.
   local servers = {
-    astro = {
-      filetypes = { 'astro' },
-    },
-    clangd = {},
-    -- gopls = {},
-    -- pyright = {},
-    -- rust_analyzer = {},
+    astro = { filetypes = { 'astro' } },
+    clangd = { filetypes = { 'c', 'cpp', 'objc', 'objcpp' } },
     ts_ls = {
+      filetypes = { 'typescript', 'typescriptreact', 'javascript', 'javascriptreact' },
       root_dir = require('lspconfig').util.root_pattern 'package.json',
     },
-    pylsp = {},
-    -- html = { filetypes = { 'html', 'twig', 'hbs'} },
-    -- csharp_ls = {
-    --   root_dir = function(fname)
-    --     return require('lspconfig').util.root_pattern('.godot','.git')(fname) or vim.fn.getcwd()
-    --   end,
-    -- },
-    omnisharp = {
-      -- root_dir = function(fname)
-      --   return require('lspconfig').util.root_pattern('.godot', '.git')(fname) or vim.fn.getcwd()
-      -- end,
+    pylsp = { filetypes = { 'python' } },
+    omnisharp = { filetypes = { 'cs' } },
+    tailwindcss = {
+      filetypes = { 'astro', 'html', 'css', 'scss', 'typescriptreact', 'javascriptreact', 'vue', 'svelte' },
     },
-
-    --denols = { },
-    tailwindcss = {},
-    svelte = {},
-    marksman = {
-      filetypes = { 'md', 'markdown', 'mdx', 'mdown' },
-    },
+    svelte = { filetypes = { 'svelte' } },
+    marksman = { filetypes = { 'markdown', 'mdx', 'md' } },
     lua_ls = {
+      filetypes = { 'lua' },
       Lua = {
         workspace = { checkThirdParty = false },
         telemetry = { enable = false },
-        -- NOTE: toggle below to ignore Lua_LS's noisy `missing-fields` warnings
         diagnostics = { disable = { 'missing-fields' } },
       },
     },
+    bashls = { filetypes = { 'sh', 'bash', 'zsh' } },
+    jsonls = { filetypes = { 'json', 'jsonc' } },
+    yamlls = { filetypes = { 'yaml' } },
+    html = { filetypes = { 'html' } },
   }
 
   -- mason-lspconfig requires that these setup functions are called in this order
   -- before setting up the servers.
   require('mason').setup()
-  require('mason-lspconfig').setup()
+  require('mason-lspconfig').setup {
+    automatic_installation = false,
+    automatic_enable = false,
+  }
 
-  -- nvim-cmp supports additional completion capabilities, so broadcast that to servers
   local capabilities = vim.lsp.protocol.make_client_capabilities()
   capabilities = require('cmp_nvim_lsp').default_capabilities(capabilities)
 
-  -- Ensure the servers above are installed
-  local mason_lspconfig = require 'mason-lspconfig'
+  for server_name, server_cfg in pairs(servers) do
+    require('lspconfig')[server_name].setup {
+      capabilities = capabilities,
+      on_attach = on_attach,
+      settings = server_cfg,
+      filetypes = server_cfg.filetypes,
+      root_dir = server_cfg.root_dir,
+    }
+  end
 
-  mason_lspconfig.setup {
-    ensure_installed = vim.tbl_keys(servers),
-  }
+  -- On-demand LSP install: when a filetype opens, install its server via mason
+  -- if missing, then start LSP. Silent if mason/network unavailable.
+  do
+    local ft_to_servers = {}
+    for name, cfg in pairs(servers) do
+      for _, ft in ipairs(cfg.filetypes or {}) do
+        ft_to_servers[ft] = ft_to_servers[ft] or {}
+        table.insert(ft_to_servers[ft], name)
+      end
+    end
 
-  -- Install non-lsps with mason.
-  -- require('mason-tool-installer').setup {
-  --   ensure_installed = {
-  --     'stylua',
-  --     'prettier',
-  --   },
-  -- }
+    -- mason package names differ from lspconfig server names for some entries
+    local lspconfig_to_mason = {
+      ts_ls = 'typescript-language-server',
+      lua_ls = 'lua-language-server',
+      bashls = 'bash-language-server',
+      jsonls = 'json-lsp',
+      yamlls = 'yaml-language-server',
+      html = 'html-lsp',
+      pylsp = 'python-lsp-server',
+      omnisharp = 'omnisharp',
+      tailwindcss = 'tailwindcss-language-server',
+      svelte = 'svelte-language-server',
+      marksman = 'marksman',
+      astro = 'astro-language-server',
+      clangd = 'clangd',
+    }
 
-  mason_lspconfig.setup_handlers {
-    function(server_name)
-      require('lspconfig')[server_name].setup {
-        capabilities = capabilities,
-        on_attach = on_attach,
-        settings = servers[server_name],
-        filetypes = (servers[server_name] or {}).filetypes,
-        root_dir = (servers[server_name] or {}).root_dir,
-      }
-    end,
-  }
+    vim.api.nvim_create_autocmd('FileType', {
+      group = vim.api.nvim_create_augroup('LspOnDemandInstall', { clear = true }),
+      callback = function(args)
+        local servers_for_ft = ft_to_servers[args.match]
+        if not servers_for_ft then return end
+        local ok, registry = pcall(require, 'mason-registry')
+        if not ok then return end
+        for _, server_name in ipairs(servers_for_ft) do
+          local mason_name = lspconfig_to_mason[server_name] or server_name
+          local pkg_ok, pkg = pcall(registry.get_package, mason_name)
+          if pkg_ok and not pkg:is_installed() then
+            vim.notify('Installing ' .. mason_name .. '...', vim.log.levels.INFO)
+            local install_ok, handle = pcall(function() return pkg:install() end)
+            if install_ok and handle then
+              handle:once('closed', function()
+                vim.schedule(function()
+                  if pkg:is_installed() then
+                    vim.notify(mason_name .. ' ready', vim.log.levels.INFO)
+                    pcall(vim.cmd, 'LspStart ' .. server_name)
+                  end
+                end)
+              end)
+            end
+          end
+        end
+      end,
+    })
+  end
 
   require('lspconfig').gdscript.setup {
     capabilities = capabilities,
@@ -665,7 +640,7 @@ local treesitter_opts = {
   -- autoinstall languages that are not installed. defaults to false (but you can change for yourself!)
   auto_install = true,
   ignore_install = {},
-  sync_install = true,
+  sync_install = false,
   modules = {},
 
   highlight = { enable = true },
@@ -799,18 +774,19 @@ end
 --
 --  You can also configure plugins after the setup call,
 --    as they will be available in your neovim runtime.
+if vim.loop.fs_stat(lazypath) then
 require('lazy').setup({
   -- NOTE: First, some plugins that don't require any configuration
 
   -- Git related plugins
   {
     'tpope/vim-fugitive',
-    event = 'VeryLazy',
+    cmd = { 'Git', 'G', 'Gdiffsplit', 'Gblame', 'Gread', 'Gwrite', 'Glog' },
   },
 
   {
     'tpope/vim-rhubarb',
-    event = 'VeryLazy',
+    cmd = { 'GBrowse' },
     dependencies = {
       'tpope/vim-fugitive',
     },
@@ -819,7 +795,7 @@ require('lazy').setup({
   -- Detect tabstop and shiftwidth automatically
   {
     'tpope/vim-sleuth',
-    event = 'VeryLazy',
+    event = { 'BufReadPost', 'BufNewFile' },
   },
 
   -- NOTE: This is where your plugins related to LSP can be installed.
@@ -851,12 +827,12 @@ require('lazy').setup({
       'folke/neodev.nvim',
     },
     config = configure_lsp,
-    event = { 'VeryLazy' },
+    event = { 'BufReadPre', 'BufNewFile' },
+    cmd = { 'LspInfo', 'LspStart', 'Mason' },
   },
 
   {
     'folke/zen-mode.nvim',
-    event = 'VeryLazy',
     keys = {
       {
         '<leader>mz',
@@ -869,115 +845,9 @@ require('lazy').setup({
   },
 
   {
-    'nvim-telekasten/telekasten.nvim',
-    dependencies = { 'nvim-telescope/telescope.nvim' },
-    keys = {
-      { mode = { 'n' }, '<leader>z', '<cmd>Telekasten panel<CR>' },
-      -- Call insert link automatically when we start typing a link
-      { mode = { 'i' }, '[[', '<cmd>Telekasten insert_link<CR>' },
-      -- Most used functions
-      { mode = { 'n' }, '<leader>zf', '<cmd>Telekasten find_notes<CR>' },
-      { mode = { 'n' }, '<leader>zg', '<cmd>Telekasten search_notes<CR>' },
-      { mode = { 'n' }, '<leader>zd', '<cmd>Telekasten goto_today<CR>' },
-      { mode = { 'n' }, '<leader>zz', '<cmd>Telekasten follow_link<CR>' },
-      { mode = { 'n' }, '<leader>zn', '<cmd>Telekasten new_note<CR>' },
-      { mode = { 'n' }, '<leader>zc', '<cmd>Telekasten show_calendar<CR>' },
-      { mode = { 'n' }, '<leader>zb', '<cmd>Telekasten show_backlinks<CR>' },
-      { mode = { 'n' }, '<leader>zI', '<cmd>Telekasten insert_img_link<CR>' },
-    },
-    enabled = false,
-    opts = {
-      home = '~/notes',
-      auto_set_filetype = true, -- Set filetype to telekasten automatically
-      dailies = 'daily', -- Subdirectory for daily notes
-      weeklies = 'weekly', -- Subdirectory for weekly notes
-      templates = 'templates', -- Subdirectory for templates
-      extension = '.md', -- Use .md files for markdown notes
-      follow_creates_nonexisting = true, -- Automatically create files when following markdown links
-      -- Use markdown-style links instead of wikilinks
-      plug_into_calendar = false, -- Disable calendar integration if not needed
-      use_wiki_style = false, -- Use markdown links like `[link text](path)`
-    },
-  },
-
-  -- {
-  --   'git@github.com:cybermelons/nzk.nvim',
-  --   enabled = true,
-  --   dependencies = {
-  --     'nvim-lua/plenary.nvim',
-  --     'nvim-telescope/telescope.nvim',
-  --   },
-  --   keys = {
-  --     {
-  --       '<leader>z',
-  --       function()
-  --         require('nzk.core.palet').command_palette()
-  --       end,
-  --       desc = 'Open n[z]k Command Palette',
-  --     },
-  --   },
-  --   ft = { 'markdown' },
-  --   version = false,
-  --   event = { 'BufReadPost', 'BufNewFile' }, -- Lazy load on relevant events
-  --   opts = {
-  --     wiki_dir = '~/notes',
-  --   },
-  --   branch = 'slim',
-  -- },
-  {
-    'yetone/avante.nvim',
-    event = 'VeryLazy',
-    lazy = false,
-    version = false, -- set this if you want to always pull the latest change
-    opts = {
-      -- recommended settings
-      provider = 'claude',
-      claude = {
-        endpoint = 'https://api.anthropic.com',
-        model = 'claude-3-5-sonnet-20240620',
-        temperature = 0,
-        max_tokens = 8100,
-      },
-      -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
-      build = 'make',
-      -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
-      dependencies = {
-        'stevearc/dressing.nvim',
-        'nvim-lua/plenary.nvim',
-        'MunifTanjim/nui.nvim',
-        --- The below dependencies are optional,
-        'nvim-tree/nvim-web-devicons', -- or echasnovski/mini.icons
-        --"zbirenbaum/copilot.lua", -- for providers='copilot'
-        {
-          -- support for image pasting
-          'HakonHarnes/img-clip.nvim',
-          event = 'VeryLazy',
-          default = {
-            embed_image_as_base64 = false,
-            prompt_for_file_name = false,
-            drag_and_drop = {
-              insert_mode = true,
-            },
-            -- required for Windows users
-            use_absolute_path = true,
-          },
-        },
-      },
-      {
-        -- Make sure to set this up properly if you have lazy=true
-        'MeanderingProgrammer/render-markdown.nvim',
-        opts = {
-          file_types = { 'markdown', 'Avante' },
-        },
-        ft = { 'markdown', 'Avante' },
-      },
-    },
-  },
-
-  {
     'ahmedkhalf/project.nvim',
     dependencies = 'nvim-telescope/telescope.nvim',
-    event = 'VeryLazy',
+    event = 'VimEnter',
     opts = {
       manual_mode = false, -- automactically add
     },
@@ -1036,13 +906,12 @@ require('lazy').setup({
 
   {
     'mattn/emmet-vim',
-    event = 'VeryLazy',
     ft = { 'typescriptreact', 'html', 'astro' },
   },
 
   {
     'norcalli/nvim-colorizer.lua',
-    event = 'VeryLazy',
+    cmd = { 'ColorizerToggle', 'ColorizerAttachToBuffer', 'ColorizerReloadAllBuffers' },
     --ft = { 'typescriptreact', 'typescript', 'javascript', 'css' },
   },
 
@@ -1173,7 +1042,7 @@ require('lazy').setup({
 
   {
     'WhoIsSethDaniel/mason-tool-installer.nvim',
-    event = 'VeryLazy',
+    cmd = { 'MasonToolsInstall', 'MasonToolsUpdate', 'MasonToolsClean' },
     dependencies = { 'williamboman/mason.nvim' },
   },
 
@@ -1268,56 +1137,6 @@ require('lazy').setup({
     end,
   },
 
-  {
-    'nvimdev/dashboard-nvim',
-    event = 'VimEnter',
-    config = function()
-      require('dashboard').setup {
-        config = {
-          week_header = {
-            enable = true,
-          },
-          project = { enable = true, limit = 5, action = 'Telescope find_files' },
-          mru = { limit = 5 },
-          shortcut = {
-            { desc = '󰊳 Update', group = '@property', action = 'Lazy update', key = 'u' },
-            -- { desc = '⚡Restore Session', group = '@property', action = 'lua require("persistence").load({ last = true})', key = 'r' },
-            { desc = '⚡Restore Session', group = '@property', action = 'SessionLoadLast', key = 'r' },
-            {
-              icon = ' ',
-              icon_hl = '@variable',
-              desc = 'Files',
-              group = 'Label',
-              action = 'Telescope find_files',
-              key = 'f',
-            },
-            {
-              desc = '📚 Notes',
-              group = 'DiagnosticHint',
-              action = 'Neorg journal today',
-              key = 'n',
-            },
-            {
-              desc = ' Apps',
-              group = 'DiagnosticHint',
-              action = 'Telescope app',
-              key = 'a',
-            },
-            {
-              desc = ' dotfiles',
-              group = 'Number',
-              action = 'Telescope file_browser path=' .. vim.fn.stdpath 'config',
-              key = 'd',
-            },
-          },
-        },
-      }
-
-      vim.keymap.set('n', '<leader>H', '<cmd>Dashboard<cr>', { desc = '[H]ome' }) --
-    end,
-    enabled = false, -- use alpha-nvim instead
-    dependencies = { { 'nvim-tree/nvim-web-devicons' } },
-  },
   {
     'goolord/alpha-nvim',
     dependencies = { 'nvim-tree/nvim-web-devicons' },
@@ -1426,21 +1245,9 @@ require('lazy').setup({
 
   -- session management
   {
-    'folke/persistence.nvim',
-    event = 'BufReadPre', -- this will only start session saving when an actual file was opened
-    opts = {
-      -- add any custom options here
-    },
-    keys = {
-      { '<leader>tp', [[<cmd>lua require("persistence").stop()<cr>]], desc = 'Sto[p] Session Management' },
-      { '<leader>ts', [[<cmd>lua require("persistence").start()<cr>]], desc = '[S]tart Session Management' },
-    },
-    enabled = false,
-  },
-  -- Chosen in favor of persistence.nvim
-  {
     'olimorris/persisted.nvim',
-    event = { 'VeryLazy' },
+    keys = { '<leader>ss' },
+    cmd = { 'SessionLoad', 'SessionLoadLast', 'SessionSave', 'SessionDelete' },
     dependencies = { 'nvim-telescope/telescope.nvim' },
     config = function()
       require('persisted').setup {
@@ -1466,52 +1273,6 @@ require('lazy').setup({
       -- { '<leader>ts', [[<cmd>lua require("persistence").start()<cr>]], desc = '[S]tart Session Management' },
       { '<leader>ss', [[<cmd>Telescope persisted<cr>]], desc = '[S]essions' },
     },
-  },
-
-  {
-    'folke/edgy.nvim',
-    event = 'VeryLazy',
-    opts = {},
-    config = function()
-      -- views can only be fully collapsed with the global statusline
-      vim.opt.laststatus = 3
-      -- Default splitting will cause your main splits to jump when opening an edgebar.
-      -- To prevent this, set `splitkeep` to either `screen` or `topline`.
-      vim.opt.splitkeep = 'screen'
-    end,
-    enabled = false, -- disabled until I properly configure this
-  },
-
-  {
-    'romgrk/barbar.nvim',
-    dependencies = {
-      'lewis6991/gitsigns.nvim', -- OPTIONAL: for git status
-      'nvim-tree/nvim-web-devicons', -- OPTIONAL: for file icons
-    },
-    -- init = function()
-    --   vim.g.barbar_auto_setup = false
-    --   local map = vim.api.nvim_set_keymap
-    --   local opts = { noremap = true, silent = true }
-    --   -- Move to previous/next
-    --   map('n', 'gT', '<Cmd>BufferPrevious<CR>', opts)
-    --   map('n', 'gt', '<Cmd>BufferNext<CR>', opts)
-    --   map('n', '<C-q>', '<Cmd>BufferClose<CR>', opts)
-    -- end,
-    opts = {
-      sidebar_filetypes = {
-        ['neo-tree'] = { text = 'Files' },
-      },
-      -- lazy.nvim will automatically call setup for you. put your options here, anything missing will use the default:
-      -- animation = true,
-      -- insert_at_start = true,
-      -- …etc.
-    },
-    keys = {
-      { 'gT', '<Cmd>BufferPrevious<CR>' },
-      { 'gt', '<Cmd>BufferNext<CR>' },
-      { '<C-q>', '<Cmd>BufferClose<CR>' },
-    },
-    enabled = false,
   },
 
   {
@@ -1554,18 +1315,6 @@ require('lazy').setup({
   },
 
   {
-    'akinsho/bufferline.nvim',
-    version = '*',
-    dependencies = 'nvim-tree/nvim-web-devicons',
-    opts = {
-      options = {
-        mode = 'tabs',
-      },
-    },
-    enabled = false,
-  },
-
-  {
     'nvim-neo-tree/neo-tree.nvim',
     opts = {},
     dependencies = {
@@ -1604,7 +1353,6 @@ require('lazy').setup({
         desc = 'Show [N]eoTree on [g]it',
       },
     },
-    event = 'VeryLazy',
   },
   {
     'ziontee113/icon-picker.nvim',
@@ -1632,15 +1380,6 @@ require('lazy').setup({
   },
 
   {
-    -- Theme inspired by Atom
-    'olimorris/onedarkpro.nvim',
-    priority = 1000,
-    config = function()
-      vim.cmd.colorscheme 'onedark'
-    end,
-    enabled = false,
-  },
-  {
     'folke/tokyonight.nvim',
     lazy = false,
     priority = 1000,
@@ -1654,6 +1393,7 @@ require('lazy').setup({
     'nvim-lualine/lualine.nvim',
     -- See `:help lualine.txt`
     event = 'VimEnter',
+    dependencies = { 'folke/tokyonight.nvim' },
     opts = {
       options = {
         component_separators = '|',
@@ -1704,7 +1444,13 @@ require('lazy').setup({
   -- Fuzzy Finder (files, lsp, etc)
   {
     'nvim-telescope/telescope.nvim',
-    event = { 'UIEnter', 'VeryLazy' },
+    cmd = 'Telescope',
+    keys = {
+      '<leader>?', '<leader><space>', '<leader>/',
+      '<leader>sf', '<leader>sg', '<leader>sG', '<leader>sw', '<leader>sd', '<leader>sr',
+      '<leader>sk', '<leader>sh', '<leader>st',
+      '<leader>gf', '<C-P>', '<leader>sp', '<leader>sb',
+    },
     branch = '0.1.x',
     dependencies = {
       'nvim-lua/plenary.nvim',
@@ -1716,7 +1462,7 @@ require('lazy').setup({
         -- NOTE: If you are having trouble with this installation,
         --       refer to the README for telescope-fzf-native for more instructions.
         build = 'make',
-        event = 'VeryLazy',
+        lazy = true,
         cond = function()
           return vim.fn.executable 'make' == 1
         end,
@@ -1742,7 +1488,7 @@ require('lazy').setup({
   {
     'nvim-telescope/telescope-ui-select.nvim',
     dependencies = { 'nvim-telescope/telescope.nvim' },
-    event = { 'VeryLazy', 'VimEnter' },
+    lazy = true,
   },
 
   {
@@ -1750,7 +1496,7 @@ require('lazy').setup({
     'nvim-treesitter/nvim-treesitter',
     cmd = { 'TSUpdateSync', 'TSUpdate', 'TSInstall', 'TSBufEnable', 'TSBufDisable' },
     version = false, -- last release is way too old and doesn't work on Windows
-    event = { 'VeryLazy' },
+    event = { 'BufReadPost', 'BufNewFile' },
     init = function(plugin)
       -- PERF: add nvim-treesitter queries to the rtp and it's custom query predicates early
       -- This is needed because a bunch of plugins no longer `require("nvim-treesitter")`, which
@@ -1785,26 +1531,37 @@ require('lazy').setup({
   },
   {
     'davidmh/mdx.nvim',
-    config = true,
+    ft = { 'mdx', 'markdown.mdx' },
+    config = function()
+      require('mdx').setup()
+    end,
     dependencies = { 'nvim-treesitter/nvim-treesitter' },
   },
 
   {
-    'ggandor/leap.nvim',
-    --event = 'VeryLazy', STOP, leap.nvim handle lazy loading already
+    url = 'https://codeberg.org/andyg/leap.nvim',
     dependencies = {
       'tpope/vim-repeat',
     },
     priority = 51, -- set to 51 for the 'S' mapping to work
-    config = function()
-      require('leap').create_default_mappings()
-    end,
+    keys = {
+      { 's', '<Plug>(leap-forward)', mode = { 'n', 'x', 'o' } },
+      { 'S', '<Plug>(leap-backward)', mode = { 'n', 'x', 'o' } },
+      { 'gs', '<Plug>(leap-from-window)', mode = { 'n', 'x', 'o' } },
+    },
   },
 
   {
     'kylechui/nvim-surround',
     version = '*', -- Use for stability; omit to use `main` branch for the latest features
-    event = 'VeryLazy',
+    keys = {
+      { 'ys', mode = 'n' },
+      { 'yS', mode = 'n' },
+      { 'ds', mode = 'n' },
+      { 'cs', mode = 'n' },
+      { 'gz', mode = 'v' },
+      { 'gZ', mode = 'v' },
+    },
     opts = {
       keymaps = {
         visual = 'gz',
@@ -1815,14 +1572,19 @@ require('lazy').setup({
 
   {
     'numToStr/Comment.nvim',
-    event = 'VeryLazy',
+    keys = {
+      { 'gc', mode = { 'n', 'v' } },
+      { 'gb', mode = { 'n', 'v' } },
+      'gcc',
+      'gbc',
+      { '<C-/>', mode = { 'n', 'v', 'x' } },
+    },
     opts = {
       -- add any options here
     },
   },
   {
     'vhyrro/luarocks.nvim',
-    priority = 1000, -- Very high priority is required, luarocks.nvim should run as the first plugin in your config.
     config = true,
   },
 
@@ -1831,7 +1593,6 @@ require('lazy').setup({
     ft = 'norg',
     dependencies = { 'vhyrro/luarocks.nvim' },
     cmd = { 'Neorg', 'NeorgOpen', 'NeorgNew' },
-    lazy = false,
     keys = {
       {
         '<leader>N',
@@ -1874,7 +1635,10 @@ require('lazy').setup({
   {
     'cybermelons/bookmarks.nvim',
     dependencies = { 'telescope.nvim' },
-    event = 'VeryLazy',
+    keys = {
+      '<leader>mm', '<leader>me', '<leader>mc',
+      '<leader>mn', '<leader>mp', '<leader>ml', '<leader>b',
+    },
     config = function()
       require('bookmarks').setup()
       require('telescope').load_extension 'bookmarks'
@@ -1910,6 +1674,7 @@ require('lazy').setup({
     build = 'cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release && cmake --install build --prefix build',
   },
 }, {})
+end
 
 -- [[ Setting options ]]
 -- See `:help vim.o`
@@ -2026,9 +1791,12 @@ vim.api.nvim_create_autocmd({ 'BufEnter' }, {
   end,
 })
 
--- Set shiftwidth for everything to 2
-vim.api.nvim_create_autocmd({ 'BufEnter' }, {
-  callback = function()
+-- Default tabwidth 2 for everything except languages that set their own
+vim.api.nvim_create_autocmd('FileType', {
+  callback = function(args)
+    if args.match == 'gd' or args.match == 'gdscript' or args.match == 'gdscript3' then
+      return
+    end
     vim.bo.tabstop = 2
     vim.bo.shiftwidth = 2
   end,
