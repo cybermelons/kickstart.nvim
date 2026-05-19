@@ -762,11 +762,12 @@ require('lazy').setup({
       -- 'default' = Ctrl-y to confirm, Tab/Shift-Tab to navigate, Ctrl-n/p alternates.
       -- 'super-tab' = Tab confirms and snippet-jumps; falls back to native Tab.
       keymap = {
-        preset = 'super-tab',
+        preset = 'enter',
+        ['<Tab>'] = { 'select_next', 'snippet_forward', 'fallback' },
+        ['<S-Tab>'] = { 'select_prev', 'snippet_backward', 'fallback' },
         ['<C-Space>'] = { 'show', 'show_documentation', 'hide_documentation' },
         ['<C-b>'] = { 'scroll_documentation_up', 'fallback' },
         ['<C-f>'] = { 'scroll_documentation_down', 'fallback' },
-        ['<CR>'] = { 'accept', 'fallback' },
       },
       snippets = { preset = 'luasnip' },
       sources = {
