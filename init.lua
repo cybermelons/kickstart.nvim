@@ -1503,6 +1503,13 @@ require('lazy').setup({
     config = true,
   },
 
+  -- Override neorg's transitive deps to make them lazy too (they default to
+  -- eager when lazy.nvim auto-registers them from neorg's package metadata).
+  { 'pysan3/pathlib.nvim', lazy = true },
+  { 'nvim-neorg/lua-utils.nvim', lazy = true },
+  { 'nvim-neorg/tree-sitter-norg', lazy = true },
+  { 'nvim-neorg/tree-sitter-norg-meta', lazy = true },
+
   {
     'nvim-neorg/neorg',
     ft = 'norg',
