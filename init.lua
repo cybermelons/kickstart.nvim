@@ -756,11 +756,29 @@ require('lazy').setup({
       'L3MON4D3/LuaSnip',
       { 'giuxtaposition/blink-cmp-copilot', dependencies = { 'zbirenbaum/copilot.lua' } },
     },
+    -- Mirror blink's insert-mode bindings as descriptive no-op stubs so they
+    -- show up in :Telescope keymaps. Blink's real handlers run via its own
+    -- dispatcher (registered on InsertEnter) and take precedence; the desc
+    -- here is what telescope picks up.
+    init = function()
+      local stubs = {
+        { '<CR>',      'blink.cmp: accept completion' },
+        { '<Tab>',     'blink.cmp: next item / snippet forward' },
+        { '<S-Tab>',   'blink.cmp: prev item / snippet backward' },
+        { '<C-Space>', 'blink.cmp: show menu / toggle docs' },
+        { '<C-b>',     'blink.cmp: scroll docs up' },
+        { '<C-f>',     'blink.cmp: scroll docs down' },
+        { '<C-e>',     'blink.cmp: hide menu' },
+      }
+      for _, m in ipairs(stubs) do
+        vim.keymap.set('i', m[1], '<Ignore>', { desc = m[2] })
+      end
+    end,
     ---@module 'blink.cmp'
     ---@type blink.cmp.Config
     opts = {
-      -- 'default' = Ctrl-y to confirm, Tab/Shift-Tab to navigate, Ctrl-n/p alternates.
-      -- 'super-tab' = Tab confirms and snippet-jumps; falls back to native Tab.
+      -- See `:h blink-cmp-config-keymap` for the action vocabulary.
+      -- Presets: 'default' (C-y confirm), 'enter' (CR confirm), 'super-tab'.
       keymap = {
         preset = 'enter',
         ['<Tab>'] = { 'select_next', 'snippet_forward', 'fallback' },
