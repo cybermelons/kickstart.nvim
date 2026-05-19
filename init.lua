@@ -442,7 +442,6 @@ local configure_lsp = function()
   --
   --
 
-  require('neodev').setup()
   -- document existing key chains
 
   require('which-key').add {
@@ -640,70 +639,11 @@ local setup_godot_dap = function()
   }
 end
 
-local treesitter_opts = {
-  ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash', 'astro' },
-
-  -- autoinstall languages that are not installed. defaults to false (but you can change for yourself!)
-  auto_install = true,
-  ignore_install = {},
-  sync_install = false,
-  modules = {},
-
-  highlight = { enable = true },
-  indent = { enable = true },
-  incremental_selection = {
-    enable = true,
-    keymaps = {
-      init_selection = '<leader>v',
-      node_incremental = '<leader>v',
-      scope_incremental = '<c-s>',
-      node_decremental = '<m-space>',
-    },
-  },
-  textobjects = {
-    select = {
-      enable = true,
-      lookahead = true, -- automatically jump forward to textobj, similar to targets.vim
-      keymaps = {
-        -- you can use the capture groups defined in textobjects.scm
-        ['aa'] = '@parameter.outer',
-        ['ia'] = '@parameter.inner',
-        ['af'] = '@function.outer',
-        ['if'] = '@function.inner',
-        ['ac'] = '@class.outer',
-        ['ic'] = '@class.inner',
-      },
-    },
-    move = {
-      enable = true,
-      set_jumps = true, -- whether to set jumps in the jumplist
-      goto_next_start = {
-        [']m'] = '@function.outer',
-        [']]'] = '@class.outer',
-      },
-      goto_next_end = {
-        [']m'] = '@function.outer',
-        [']['] = '@class.outer',
-      },
-      goto_previous_start = {
-        ['[m'] = '@function.outer',
-        ['[['] = '@class.outer',
-      },
-      goto_previous_end = {
-        ['[m'] = '@function.outer',
-        ['[]'] = '@class.outer',
-      },
-    },
-    swap = {
-      enable = true,
-      swap_next = {
-        ['<leader>a'] = '@parameter.inner',
-      },
-      swap_previous = {
-        ['<leader>a'] = '@parameter.inner',
-      },
-    },
-  },
+-- nvim-treesitter `main` branch: parsers managed via :TSInstall / setup().install,
+-- highlight/indent/folds wired manually per-buffer via FileType autocmd.
+local treesitter_ensure_installed = {
+  'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript',
+  'vimdoc', 'vim', 'bash', 'astro', 'query', 'markdown', 'markdown_inline',
 }
 
 local configure_cmp = function()
@@ -830,7 +770,15 @@ require('lazy').setup({
       },
 
       -- Additional lua configuration, makes nvim stuff amazing!
-      'folke/neodev.nvim',
+      {
+        'folke/lazydev.nvim',
+        ft = 'lua',
+        opts = {
+          library = {
+            { path = '${3rd}/luv/library', words = { 'vim%.uv' } },
+          },
+        },
+      },
     },
     config = configure_lsp,
     event = { 'BufReadPre', 'BufNewFile' },
@@ -1461,43 +1409,72 @@ require('lazy').setup({
   },
 
   {
-    -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
-    cmd = { 'TSUpdateSync', 'TSUpdate', 'TSInstall', 'TSBufEnable', 'TSBufDisable' },
-    version = false, -- last release is way too old and doesn't work on Windows
-    event = { 'BufReadPost', 'BufNewFile' },
-    init = function(plugin)
-      -- PERF: add nvim-treesitter queries to the rtp and it's custom query predicates early
-      -- This is needed because a bunch of plugins no longer `require("nvim-treesitter")`, which
-      -- no longer trigger the **nvim-treesitter** module to be loaded in time.
-      -- Luckily, the only things that those plugins need are the custom queries, which we make available
-      -- during startup.
-      require('lazy.core.loader').add_to_rtp(plugin)
-      require 'nvim-treesitter.query_predicates'
+    branch = 'main',
+    lazy = false,
+    -- `build` runs on install and on every `:Lazy update` — exactly when parsers
+    -- need (re)compiling. It does NOT run on normal startup.
+    build = function()
+      require('nvim-treesitter').install(treesitter_ensure_installed):wait(300000)
     end,
-    dependencies = {
-      {
-        'nvim-treesitter/nvim-treesitter-textobjects',
-      },
-    },
-    build = ':TSUpdate',
-    opts = treesitter_opts,
-    ---@param opts TSConfig
-    config = function(_, opts)
-      if type(opts.ensure_installed) == 'table' then
-        ---@type table<string, boolean>
-        local added = {}
-        opts.ensure_installed = vim.tbl_filter(function(lang)
-          if added[lang] then
-            return false
-          end
-          added[lang] = true
-          return true
-        end, opts.ensure_installed)
-      end
-      require('nvim-treesitter.configs').setup(opts)
+    config = function()
+      require('nvim-treesitter').setup()
+
+      vim.api.nvim_create_autocmd('FileType', {
+        group = vim.api.nvim_create_augroup('treesitter-setup', { clear = true }),
+        callback = function(args)
+          local buf = args.buf
+          local ft = vim.bo[buf].filetype
+          local lang = vim.treesitter.language.get_lang(ft) or ft
+          if not lang or lang == '' then return end
+          if not pcall(vim.treesitter.start, buf, lang) then return end
+
+          vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+          vim.wo.foldexpr = "v:lua.vim.treesitter.foldexpr()"
+        end,
+      })
     end,
   },
+
+  {
+    'nvim-treesitter/nvim-treesitter-textobjects',
+    branch = 'main',
+    dependencies = { 'nvim-treesitter/nvim-treesitter' },
+    event = { 'BufReadPost', 'BufNewFile' },
+    config = function()
+      require('nvim-treesitter-textobjects').setup {
+        select = { lookahead = true },
+        move = { set_jumps = true },
+      }
+
+      local select = require 'nvim-treesitter-textobjects.select'
+      local move = require 'nvim-treesitter-textobjects.move'
+      local swap = require 'nvim-treesitter-textobjects.swap'
+
+      local function sel(obj) return function() select.select_textobject(obj, 'textobjects') end end
+      for _, m in ipairs { 'x', 'o' } do
+        vim.keymap.set(m, 'aa', sel '@parameter.outer', { desc = 'a parameter' })
+        vim.keymap.set(m, 'ia', sel '@parameter.inner', { desc = 'inner parameter' })
+        vim.keymap.set(m, 'af', sel '@function.outer', { desc = 'a function' })
+        vim.keymap.set(m, 'if', sel '@function.inner', { desc = 'inner function' })
+        vim.keymap.set(m, 'ac', sel '@class.outer', { desc = 'a class' })
+        vim.keymap.set(m, 'ic', sel '@class.inner', { desc = 'inner class' })
+      end
+
+      vim.keymap.set({ 'n', 'x', 'o' }, ']m', function() move.goto_next_start('@function.outer', 'textobjects') end, { desc = 'Next function start' })
+      vim.keymap.set({ 'n', 'x', 'o' }, ']]', function() move.goto_next_start('@class.outer', 'textobjects') end, { desc = 'Next class start' })
+      vim.keymap.set({ 'n', 'x', 'o' }, ']M', function() move.goto_next_end('@function.outer', 'textobjects') end, { desc = 'Next function end' })
+      vim.keymap.set({ 'n', 'x', 'o' }, '][', function() move.goto_next_end('@class.outer', 'textobjects') end, { desc = 'Next class end' })
+      vim.keymap.set({ 'n', 'x', 'o' }, '[m', function() move.goto_previous_start('@function.outer', 'textobjects') end, { desc = 'Prev function start' })
+      vim.keymap.set({ 'n', 'x', 'o' }, '[[', function() move.goto_previous_start('@class.outer', 'textobjects') end, { desc = 'Prev class start' })
+      vim.keymap.set({ 'n', 'x', 'o' }, '[M', function() move.goto_previous_end('@function.outer', 'textobjects') end, { desc = 'Prev function end' })
+      vim.keymap.set({ 'n', 'x', 'o' }, '[]', function() move.goto_previous_end('@class.outer', 'textobjects') end, { desc = 'Prev class end' })
+
+      vim.keymap.set('n', '<leader>a', function() swap.swap_next('@parameter.inner') end, { desc = 'Swap next parameter' })
+      vim.keymap.set('n', '<leader>A', function() swap.swap_previous('@parameter.inner') end, { desc = 'Swap previous parameter' })
+    end,
+  },
+
   {
     'davidmh/mdx.nvim',
     ft = { 'mdx', 'markdown.mdx' },
