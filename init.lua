@@ -845,45 +845,6 @@ require('lazy').setup({
   },
 
   {
-    'ahmedkhalf/project.nvim',
-    dependencies = 'nvim-telescope/telescope.nvim',
-    event = 'VimEnter',
-    opts = {
-      manual_mode = false, -- automactically add
-    },
-    keys = {
-      {
-        '<leader>sp',
-        function()
-          require('telescope').extensions.projects.projects {}
-        end,
-        desc = '[S]earch [P]rojects',
-      },
-    },
-    config = function(_, opts)
-      opts.detection_methods = { 'lsp', 'pattern' }
-      opts.patterns = {
-        '.git',
-        '.hg',
-        '.svn',
-      }
-      -- Use a custom root pattern finder that respects worktrees
-      opts.root_dir = function()
-        local current_dir = vim.fn.getcwd()
-        local git_dir = vim.fn.system('git rev-parse --git-dir 2>/dev/null'):gsub('\n', '')
-        if git_dir:match('%.git/worktrees/') then
-          -- We're in a worktree, use current directory as root
-          return current_dir
-        end
-        -- Otherwise, use default behavior
-        return nil
-      end
-      require('project_nvim').setup(opts)
-      require('telescope').load_extension 'projects'
-    end,
-  },
-
-  {
     -- Autocompletion
     'hrsh7th/nvim-cmp',
     event = 'InsertEnter', -- TODO: nvim-cmp lazy loading
@@ -1228,13 +1189,14 @@ require('lazy').setup({
   -- Adds a lazygit wrapper
   {
     'kdheepak/lazygit.nvim',
-    -- optional for floating window border decoration
-    dependencies = {
-      'nvim-lua/plenary.nvim',
-    },
+    cmd = { 'LazyGit', 'LazyGitCurrentFile', 'LazyGitConfig', 'LazyGitFilter', 'LazyGitFilterCurrentFile' },
+    dependencies = { 'nvim-lua/plenary.nvim' },
     keys = {
-      { '<leader>lg', '<cmd>LazyGitCurrentFile<cr>', desc = '[L]azy[g]it' }, --
+      { '<leader>lg', '<cmd>LazyGitCurrentFile<cr>', desc = '[L]azy[g]it' },
     },
+    init = function()
+      vim.g.lazygit_floating_window_use_plenary = 0
+    end,
   },
 
   {
@@ -1394,15 +1356,15 @@ require('lazy').setup({
     -- See `:help lualine.txt`
     event = 'VimEnter',
     dependencies = { 'folke/tokyonight.nvim' },
-    opts = {
-      options = {
+    opts = function()
+      require('lazy').load { plugins = { 'tokyonight.nvim' } }
+      local theme_ok, theme = pcall(require, 'lualine.themes.tokyonight')
+      return {
+        options = {
         component_separators = '|',
         section_separators = { left = '', right = '' },
         icons_enabled = true,
-        theme = 'tokyonight',
-        -- theme = 'onedark',
-        -- component_separators = '|',
-        -- section_separators = '',
+        theme = theme_ok and theme or 'auto',
       },
       extensions = {
         'neo-tree',
@@ -1411,7 +1373,8 @@ require('lazy').setup({
         'lazy',
         'fugitive',
       },
-    },
+    }
+    end,
   },
 
   {
@@ -1449,9 +1412,9 @@ require('lazy').setup({
       '<leader>?', '<leader><space>', '<leader>/',
       '<leader>sf', '<leader>sg', '<leader>sG', '<leader>sw', '<leader>sd', '<leader>sr',
       '<leader>sk', '<leader>sh', '<leader>st',
-      '<leader>gf', '<C-P>', '<leader>sp', '<leader>sb',
+      '<leader>gf', '<C-P>', '<leader>sb',
     },
-    branch = '0.1.x',
+    branch = 'master',
     dependencies = {
       'nvim-lua/plenary.nvim',
       -- Fuzzy Finder Algorithm which requires local dependencies to be built.
