@@ -454,8 +454,8 @@ local configure_lsp = function()
     { '<leader>g_', hidden = true },
     { '<leader>h', group = 'Git [H]unk' },
     { '<leader>h_', hidden = true },
-    { '<leader>k', group = 'Sidekick (AI)' },
-    { '<leader>k_', hidden = true },
+    -- '<leader>k' (Sidekick) group label is registered in sidekick's own spec
+    -- so it isn't coupled to the LSP plugin loading.
     { '<leader>r', group = '[R]ename' },
     { '<leader>r_', hidden = true },
     { '<leader>s', group = '[S]earch' },
@@ -1205,11 +1205,32 @@ require('lazy').setup({
     opts = {
       cli = { mux = { backend = 'zellij', enabled = true } },
     },
+    -- Register the which-key group label up front (both n and v modes) so the
+    -- whole <leader>k menu is discoverable before the plugin lazy-loads.
+    init = function()
+      local ok, wk = pcall(require, 'which-key')
+      if ok then
+        wk.add {
+          { '<leader>k', group = 'Sidekick (AI)', mode = { 'n', 'v' } },
+          { '<leader>k_', hidden = true },
+        }
+      end
+    end,
     keys = {
+      -- Focus toggle: flip between editor and the agent pane (all modes).
+      -- This is the daily-driver bind once a session is open.
+      { '<c-.>', function() require('sidekick.cli').focus() end, desc = 'Sidekick: Focus pane', mode = { 'n', 't', 'i', 'x' } },
+      -- Launch / focus the agent pane
       { '<leader>kk', function() require('sidekick.cli').toggle() end, desc = 'Sidekick: Toggle CLI', mode = { 'n', 'v' } },
       { '<leader>kc', function() require('sidekick.cli').toggle { name = 'claude', focus = true } end, desc = 'Sidekick: Claude', mode = { 'n', 'v' } },
       { '<leader>ks', function() require('sidekick.cli').select() end, desc = 'Sidekick: Select CLI', mode = { 'n', 'v' } },
-      { '<leader>kp', function() require('sidekick.cli').prompt() end, desc = 'Sidekick: Send prompt/context', mode = { 'n', 'v' } },
+      { '<leader>kx', function() require('sidekick.cli').close() end, desc = 'Sidekick: Detach/close session', mode = { 'n' } },
+      -- Send code context to the agent (the part that makes this useful)
+      { '<leader>kp', function() require('sidekick.cli').prompt() end, desc = 'Sidekick: Prompt library', mode = { 'n', 'v' } },
+      { '<leader>kt', function() require('sidekick.cli').send { msg = '{this}' } end, desc = 'Sidekick: Send {this} (fn/class)', mode = { 'n', 'v' } },
+      { '<leader>kv', function() require('sidekick.cli').send { msg = '{selection}' } end, desc = 'Sidekick: Send selection', mode = { 'v' } },
+      { '<leader>kf', function() require('sidekick.cli').send { msg = '{file}' } end, desc = 'Sidekick: Send file', mode = { 'n', 'v' } },
+      { '<leader>kd', function() require('sidekick.cli').send { msg = 'Fix the diagnostics in {file}:\n{diagnostics}' } end, desc = 'Sidekick: Send diagnostics', mode = { 'n' } },
     },
   },
 
