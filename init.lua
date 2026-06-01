@@ -23,6 +23,15 @@
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
+-- Disable rplugin host providers we never use. This only turns off the
+-- remote-plugin hosts (silences :checkhealth warnings + skips startup probing);
+-- it does NOT affect node-based LSPs (ts_ls etc.) or pylsp, which run as
+-- standalone binaries rather than through these providers.
+vim.g.loaded_perl_provider = 0
+vim.g.loaded_ruby_provider = 0
+vim.g.loaded_node_provider = 0
+vim.g.loaded_python3_provider = 0
+
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    https://github.com/folke/lazy.nvim
 --    `:help lazy.nvim.txt` for more info
