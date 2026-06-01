@@ -945,8 +945,34 @@ require('lazy').setup({
   -- Useful plugin to show you pending keybinds.
   {
     'folke/which-key.nvim',
-    opts = {},
     event = 'UIEnter',
+    opts = {
+      -- 'helix' = bottom panel, the most "visual keyboard" of the presets.
+      -- ('modern' = float near cursor, 'classic' = older bottom-right.)
+      preset = 'helix',
+      -- Show the popup faster so it doubles as a learning aid; fast presses
+      -- still beat it and skip the menu (self-weaning muscle memory).
+      delay = 200,
+      icons = {
+        mappings = true, -- show an icon next to each mapping
+        keys = {}, -- use default pretty key glyphs (<C-.> etc.)
+      },
+      sort = { 'local', 'group', 'alphanum', 'mod' },
+    },
+    keys = {
+      -- <leader>? is Telescope oldfiles; use <leader>wk for the which-key
+      -- popup of buffer-local maps, and <leader>sK to browse the full tree.
+      {
+        '<leader>wk',
+        function() require('which-key').show { global = false } end,
+        desc = '[W]hich-[k]ey: buffer-local maps',
+      },
+      {
+        '<leader>sK',
+        '<cmd>WhichKey<cr>',
+        desc = '[S]earch all [K]eymaps (which-key tree)',
+      },
+    },
   },
 
   {
@@ -1151,6 +1177,23 @@ require('lazy').setup({
     'stevearc/dressing.nvim',
     event = 'UIEnter',
     opts = {},
+  },
+
+  -- screenkey.nvim: shows the keys you physically press as on-screen keycaps
+  -- (a "visual keyboard"). Off by default; toggle with <leader>tk. Pairs with
+  -- which-key (what's available) to learn keymaps by watching your own input.
+  {
+    'NStefan002/screenkey.nvim',
+    version = '*',
+    cmd = { 'Screenkey', 'ScreenkeyToggle' },
+    keys = {
+      { '<leader>tk', '<cmd>Screenkey toggle<cr>', desc = '[T]oggle screen[k]ey display' },
+    },
+    opts = {
+      win_opts = { border = 'rounded' },
+      compress_after = 3, -- collapse repeated keys (jjj -> j..) after 3
+      clear_after = 3, -- seconds of inactivity before the display clears
+    },
   },
 
   -- session management
