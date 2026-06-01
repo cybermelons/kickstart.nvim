@@ -454,6 +454,8 @@ local configure_lsp = function()
     { '<leader>g_', hidden = true },
     { '<leader>h', group = 'Git [H]unk' },
     { '<leader>h_', hidden = true },
+    { '<leader>k', group = 'Sidekick (AI)' },
+    { '<leader>k_', hidden = true },
     { '<leader>r', group = '[R]ename' },
     { '<leader>r_', hidden = true },
     { '<leader>s', group = '[S]earch' },
@@ -685,8 +687,8 @@ require('lazy').setup({
     'neovim/nvim-lspconfig',
     dependencies = {
       -- Automatically install LSPs to stdpath for neovim
-      { 'williamboman/mason.nvim', config = true },
-      'williamboman/mason-lspconfig.nvim',
+      { 'mason-org/mason.nvim', config = true },
+      'mason-org/mason-lspconfig.nvim',
       'folke/which-key.nvim',
 
       -- Useful status updates for LSP
@@ -751,7 +753,9 @@ require('lazy').setup({
   {
     'saghen/blink.cmp',
     event = 'InsertEnter',
-    version = '*', -- use prebuilt fuzzy matcher binary from release
+    -- Pin to v1.x: blink v2 is in active dev with breaking config changes.
+    -- '*' tracks the v2 dev branch and would break this keymap/sources block.
+    version = '1.*',
     dependencies = {
       'L3MON4D3/LuaSnip',
       { 'giuxtaposition/blink-cmp-copilot', dependencies = { 'zbirenbaum/copilot.lua' } },
@@ -948,7 +952,7 @@ require('lazy').setup({
   {
     'WhoIsSethDaniel/mason-tool-installer.nvim',
     cmd = { 'MasonToolsInstall', 'MasonToolsUpdate', 'MasonToolsClean' },
-    dependencies = { 'williamboman/mason.nvim' },
+    dependencies = { 'mason-org/mason.nvim' },
   },
 
   -- Works in conjunction with LSP for faster formatting
@@ -1190,6 +1194,22 @@ require('lazy').setup({
       filetypes = {},
       panel = { enabled = false },
       suggestion = { enabled = false },
+    },
+  },
+
+  -- sidekick.nvim: bridges CLI coding agents (Claude Code) into Neovim, kept
+  -- alive across editor restarts via zellij. <leader>k* prefix (k = "kick")
+  -- to avoid clobbering the bare <leader>a swap-parameter mapping.
+  {
+    'folke/sidekick.nvim',
+    opts = {
+      cli = { mux = { backend = 'zellij', enabled = true } },
+    },
+    keys = {
+      { '<leader>kk', function() require('sidekick.cli').toggle() end, desc = 'Sidekick: Toggle CLI', mode = { 'n', 'v' } },
+      { '<leader>kc', function() require('sidekick.cli').toggle { name = 'claude', focus = true } end, desc = 'Sidekick: Claude', mode = { 'n', 'v' } },
+      { '<leader>ks', function() require('sidekick.cli').select() end, desc = 'Sidekick: Select CLI', mode = { 'n', 'v' } },
+      { '<leader>kp', function() require('sidekick.cli').prompt() end, desc = 'Sidekick: Send prompt/context', mode = { 'n', 'v' } },
     },
   },
 
