@@ -23,6 +23,15 @@
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
+-- Disable rplugin host providers we never use. This only turns off the
+-- remote-plugin hosts (silences :checkhealth warnings + skips startup probing);
+-- it does NOT affect node-based LSPs (ts_ls etc.) or pylsp, which run as
+-- standalone binaries rather than through these providers.
+vim.g.loaded_perl_provider = 0
+vim.g.loaded_ruby_provider = 0
+vim.g.loaded_node_provider = 0
+vim.g.loaded_python3_provider = 0
+
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    https://github.com/folke/lazy.nvim
 --    `:help lazy.nvim.txt` for more info
@@ -454,6 +463,8 @@ local configure_lsp = function()
     { '<leader>g_', hidden = true },
     { '<leader>h', group = 'Git [H]unk' },
     { '<leader>h_', hidden = true },
+    -- '<leader>k' (Sidekick) group label is registered in sidekick's own spec
+    -- so it isn't coupled to the LSP plugin loading.
     { '<leader>r', group = '[R]ename' },
     { '<leader>r_', hidden = true },
     { '<leader>s', group = '[S]earch' },
@@ -685,8 +696,8 @@ require('lazy').setup({
     'neovim/nvim-lspconfig',
     dependencies = {
       -- Automatically install LSPs to stdpath for neovim
-      { 'williamboman/mason.nvim', config = true },
-      'williamboman/mason-lspconfig.nvim',
+      { 'mason-org/mason.nvim', config = true },
+      'mason-org/mason-lspconfig.nvim',
       'folke/which-key.nvim',
 
       -- Useful status updates for LSP
@@ -751,7 +762,9 @@ require('lazy').setup({
   {
     'saghen/blink.cmp',
     event = 'InsertEnter',
-    version = '*', -- use prebuilt fuzzy matcher binary from release
+    -- Pin to v1.x: blink v2 is in active dev with breaking config changes.
+    -- '*' tracks the v2 dev branch and would break this keymap/sources block.
+    version = '1.*',
     dependencies = {
       'L3MON4D3/LuaSnip',
       { 'giuxtaposition/blink-cmp-copilot', dependencies = { 'zbirenbaum/copilot.lua' } },
@@ -941,14 +954,40 @@ require('lazy').setup({
   -- Useful plugin to show you pending keybinds.
   {
     'folke/which-key.nvim',
-    opts = {},
     event = 'UIEnter',
+    opts = {
+      -- 'helix' = bottom panel, the most "visual keyboard" of the presets.
+      -- ('modern' = float near cursor, 'classic' = older bottom-right.)
+      preset = 'helix',
+      -- Show the popup faster so it doubles as a learning aid; fast presses
+      -- still beat it and skip the menu (self-weaning muscle memory).
+      delay = 200,
+      icons = {
+        mappings = true, -- show an icon next to each mapping
+        keys = {}, -- use default pretty key glyphs (<C-.> etc.)
+      },
+      sort = { 'local', 'group', 'alphanum', 'mod' },
+    },
+    keys = {
+      -- <leader>? is Telescope oldfiles; use <leader>wk for the which-key
+      -- popup of buffer-local maps, and <leader>sK to browse the full tree.
+      {
+        '<leader>wk',
+        function() require('which-key').show { global = false } end,
+        desc = '[W]hich-[k]ey: buffer-local maps',
+      },
+      {
+        '<leader>sK',
+        '<cmd>WhichKey<cr>',
+        desc = '[S]earch all [K]eymaps (which-key tree)',
+      },
+    },
   },
 
   {
     'WhoIsSethDaniel/mason-tool-installer.nvim',
     cmd = { 'MasonToolsInstall', 'MasonToolsUpdate', 'MasonToolsClean' },
-    dependencies = { 'williamboman/mason.nvim' },
+    dependencies = { 'mason-org/mason.nvim' },
   },
 
   -- Works in conjunction with LSP for faster formatting
@@ -1149,6 +1188,23 @@ require('lazy').setup({
     opts = {},
   },
 
+  -- screenkey.nvim: shows the keys you physically press as on-screen keycaps
+  -- (a "visual keyboard"). Off by default; toggle with <leader>tk. Pairs with
+  -- which-key (what's available) to learn keymaps by watching your own input.
+  {
+    'NStefan002/screenkey.nvim',
+    version = '*',
+    cmd = { 'Screenkey', 'ScreenkeyToggle' },
+    keys = {
+      { '<leader>tk', '<cmd>Screenkey toggle<cr>', desc = '[T]oggle screen[k]ey display' },
+    },
+    opts = {
+      win_opts = { border = 'rounded' },
+      compress_after = 3, -- collapse repeated keys (jjj -> j..) after 3
+      clear_after = 3, -- seconds of inactivity before the display clears
+    },
+  },
+
   -- session management
   {
     'olimorris/persisted.nvim',
@@ -1190,6 +1246,43 @@ require('lazy').setup({
       filetypes = {},
       panel = { enabled = false },
       suggestion = { enabled = false },
+    },
+  },
+
+  -- sidekick.nvim: bridges CLI coding agents (Claude Code) into Neovim, kept
+  -- alive across editor restarts via zellij. <leader>k* prefix (k = "kick")
+  -- to avoid clobbering the bare <leader>a swap-parameter mapping.
+  {
+    'folke/sidekick.nvim',
+    opts = {
+      cli = { mux = { backend = 'zellij', enabled = true } },
+    },
+    -- Register the which-key group label up front (both n and v modes) so the
+    -- whole <leader>k menu is discoverable before the plugin lazy-loads.
+    init = function()
+      local ok, wk = pcall(require, 'which-key')
+      if ok then
+        wk.add {
+          { '<leader>k', group = 'Sidekick (AI)', mode = { 'n', 'v' } },
+          { '<leader>k_', hidden = true },
+        }
+      end
+    end,
+    keys = {
+      -- Focus toggle: flip between editor and the agent pane (all modes).
+      -- This is the daily-driver bind once a session is open.
+      { '<c-.>', function() require('sidekick.cli').focus() end, desc = 'Sidekick: Focus pane', mode = { 'n', 't', 'i', 'x' } },
+      -- Launch / focus the agent pane
+      { '<leader>kk', function() require('sidekick.cli').toggle() end, desc = 'Sidekick: Toggle CLI', mode = { 'n', 'v' } },
+      { '<leader>kc', function() require('sidekick.cli').toggle { name = 'claude', focus = true } end, desc = 'Sidekick: Claude', mode = { 'n', 'v' } },
+      { '<leader>ks', function() require('sidekick.cli').select() end, desc = 'Sidekick: Select CLI', mode = { 'n', 'v' } },
+      { '<leader>kx', function() require('sidekick.cli').close() end, desc = 'Sidekick: Detach/close session', mode = { 'n' } },
+      -- Send code context to the agent (the part that makes this useful)
+      { '<leader>kp', function() require('sidekick.cli').prompt() end, desc = 'Sidekick: Prompt library', mode = { 'n', 'v' } },
+      { '<leader>kt', function() require('sidekick.cli').send { msg = '{this}' } end, desc = 'Sidekick: Send {this} (fn/class)', mode = { 'n', 'v' } },
+      { '<leader>kv', function() require('sidekick.cli').send { msg = '{selection}' } end, desc = 'Sidekick: Send selection', mode = { 'v' } },
+      { '<leader>kf', function() require('sidekick.cli').send { msg = '{file}' } end, desc = 'Sidekick: Send file', mode = { 'n', 'v' } },
+      { '<leader>kd', function() require('sidekick.cli').send { msg = 'Fix the diagnostics in {file}:\n{diagnostics}' } end, desc = 'Sidekick: Send diagnostics', mode = { 'n' } },
     },
   },
 
