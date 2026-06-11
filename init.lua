@@ -533,7 +533,15 @@ local configure_lsp = function()
 
   -- Prefer the new vim.lsp.config API (Neovim 0.11+); fall back to the
   -- classic lspconfig setup for older 0.11-dev builds where it's still missing.
-  if type(vim.lsp.config) == 'function' and type(vim.lsp.enable) == 'function' then
+  local function is_callable(v)
+    if type(v) == 'function' then return true end
+    if type(v) == 'table' then
+      local mt = getmetatable(v)
+      return mt ~= nil and type(mt.__call) == 'function'
+    end
+    return false
+  end
+  if is_callable(vim.lsp.config) and type(vim.lsp.enable) == 'function' then
     vim.lsp.config('*', {
       capabilities = capabilities,
       on_attach = on_attach,
@@ -1108,7 +1116,7 @@ require('lazy').setup({
       { '<C-0>', '<cmd>ResetFontSize<cr>', desc = 'GUI: Reset font size' },
     },
     config = function()
-      vim.cmd 'SetFont CaskaydiaCove Nerd Font:h14'
+      vim.cmd 'SetFont CaskaydiaCove NFM:h14'
     end,
   },
 
@@ -1326,7 +1334,20 @@ require('lazy').setup({
 
   {
     'nvim-neo-tree/neo-tree.nvim',
-    opts = {},
+    opts = {
+      filesystem = {
+        commands = {
+          system_open = function(state)
+            vim.ui.open(state.tree:get_node():get_id())
+          end,
+        },
+        window = {
+          mappings = {
+            ['O'] = 'system_open',
+          },
+        },
+      },
+    },
     cmd = 'Neotree',
     dependencies = {
       'nvim-lua/plenary.nvim',
@@ -1366,11 +1387,20 @@ require('lazy').setup({
     },
   },
   {
+    'iamcco/markdown-preview.nvim',
+    cmd = { 'MarkdownPreviewToggle', 'MarkdownPreview', 'MarkdownPreviewStop' },
+    ft = { 'markdown' },
+    build = 'cd app && npm install',
+    keys = {
+      { '<leader>md', '<cmd>MarkdownPreviewToggle<cr>', desc = '[M]ark[d]own preview in browser' },
+    },
+  },
+  {
     'ziontee113/icon-picker.nvim',
     opts = { disable_legacy_commands = true },
     keys = {
-      { '<Leader><Leader>i', '<cmd>IconPickerNormal<cr>', mode = 'n', desc = 'Open [I]con Picker', silent = true },
-      { '<Leader><Leader>y', '<cmd>IconPickerYank<cr>', mode = 'n', desc = '[Y]ank from Icon Picker', silent = true }, --> Yank the selected icon into register
+      { '<Leader>ii', '<cmd>IconPickerNormal<cr>', mode = 'n', desc = 'Open [I]con Picker', silent = true },
+      { '<Leader>iy', '<cmd>IconPickerYank<cr>', mode = 'n', desc = '[Y]ank from Icon Picker', silent = true }, --> Yank the selected icon into register
       { '<C-i>', '<cmd>IconPickerInsert<cr>', mode = 'i', desc = 'Open [I]con Picker', silent = true },
     },
   },
@@ -1845,8 +1875,9 @@ vim.o.completeopt = 'menuone,noselect'
 -- NOTE: You should make sure your terminal supports this
 vim.o.termguicolors = true
 
--- overridden by ez-guifont, so commenting out.
--- vim.o.guifont = 'CaskaydiaCove Nerd Font:h14'
+-- Set early so GUIs (Neovide/nvim-qt) don't fall back to "monospace" at startup.
+-- ez-guifont overrides this later via its SetFont command on UIEnter.
+vim.o.guifont = 'CaskaydiaCove\\ NFM,Segoe\\ UI\\ Emoji:h14'
 
 vim.o.scrolloff = 8
 
@@ -1884,6 +1915,10 @@ vim.keymap.set('n', '<leader>om', function()
   vim.api.nvim_buf_set_name(0, '[Messages]')
   vim.api.nvim_buf_set_lines(0, 0, -1, false, vim.split(msgs, '\n', { plain = true }))
 end, { desc = '[O]pen [M]essages in buffer' })
+
+vim.keymap.set('n', '<leader>ob', function()
+  vim.ui.open(vim.fn.expand('%:p'))
+end, { desc = '[O]pen file in [B]rowser' })
 
 -- Comment with Ctrl-/
 vim.keymap.set('n', '<C-/>', '<Plug>(comment_toggle_linewise_current)', { desc = '[Ctrl-/] Comment toggle linewise' })
