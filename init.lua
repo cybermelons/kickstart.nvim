@@ -23,6 +23,15 @@
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
+-- Set the GUI font at the VERY TOP of init, before lazy/plugins/UIEnter, so
+-- Neovide reads the real font on its first `guifont` read. Otherwise Neovide
+-- attaches with nvim's default guifont ('SF Mono,...,monospace'), tries to load
+-- 'monospace' (which has no bold/italic on macOS), and logs on every startup:
+--   ERROR Font can't be updated to: FontOptions { ... family: "monospace" }
+-- ez-guifont (loaded later) only adds the <C-=>/<C--> resize commands; it reads
+-- this &guifont as its base. Any GUI (Neovide included) picks this up.
+vim.o.guifont = 'CaskaydiaCove Nerd Font:h14'
+
 -- Disable rplugin host providers we never use. This only turns off the
 -- remote-plugin hosts (silences :checkhealth warnings + skips startup probing);
 -- it does NOT affect node-based LSPs (ts_ls etc.) or pylsp, which run as
@@ -495,6 +504,7 @@ local configure_lsp = function()
     clangd = { filetypes = { 'c', 'cpp', 'objc', 'objcpp' } },
     ts_ls = {
       filetypes = { 'typescript', 'typescriptreact', 'javascript', 'javascriptreact' },
+      root_dir = require('lspconfig').util.root_pattern 'package.json',
     },
     pylsp = { filetypes = { 'python' } },
     omnisharp = { filetypes = { 'cs' } },
@@ -531,40 +541,18 @@ local configure_lsp = function()
     capabilities = blink.get_lsp_capabilities(capabilities)
   end
 
-  -- Prefer the new vim.lsp.config API (Neovim 0.11+); fall back to the
-  -- classic lspconfig setup for older 0.11-dev builds where it's still missing.
-  local function is_callable(v)
-    if type(v) == 'function' then return true end
-    if type(v) == 'table' then
-      local mt = getmetatable(v)
-      return mt ~= nil and type(mt.__call) == 'function'
-    end
-    return false
-  end
-  if is_callable(vim.lsp.config) and type(vim.lsp.enable) == 'function' then
-    vim.lsp.config('*', {
-      capabilities = capabilities,
-      on_attach = on_attach,
+  vim.lsp.config('*', {
+    capabilities = capabilities,
+    on_attach = on_attach,
+  })
+
+  for server_name, server_cfg in pairs(servers) do
+    vim.lsp.config(server_name, {
+      settings = server_cfg,
+      filetypes = server_cfg.filetypes,
+      root_dir = server_cfg.root_dir,
     })
-    for server_name, server_cfg in pairs(servers) do
-      vim.lsp.config(server_name, {
-        settings = server_cfg,
-        filetypes = server_cfg.filetypes,
-        root_dir = server_cfg.root_dir,
-      })
-      vim.lsp.enable(server_name)
-    end
-  else
-    local lspconfig = require 'lspconfig'
-    for server_name, server_cfg in pairs(servers) do
-      lspconfig[server_name].setup {
-        capabilities = capabilities,
-        on_attach = on_attach,
-        settings = server_cfg,
-        filetypes = server_cfg.filetypes,
-        root_dir = server_cfg.root_dir,
-      }
-    end
+    vim.lsp.enable(server_name)
   end
 
   -- On-demand LSP install: when a filetype opens, install its server via mason
@@ -624,36 +612,33 @@ local configure_lsp = function()
     })
   end
 
-  -- gdscript / ts_ls overrides only via the new API; skip on older nvim builds.
-  if type(vim.lsp.config) == 'function' then
-    -- gdscript LSP needs `netcat` (or `ncat` on Windows) on PATH; connects to running Godot editor
-    local nc = vim.fn.executable('netcat') == 1 and 'netcat' or (vim.fn.executable('ncat') == 1 and 'ncat' or nil)
-    if nc then
-      vim.lsp.config('gdscript', {
-        cmd = { nc, 'localhost', '6005' },
-        filetypes = { 'gd', 'gdscript', 'gdscript3' },
-        root_dir = function(_, on_dir)
-          on_dir(vim.fs.root(0, { 'project.godot', '.git' }) or vim.fn.getcwd())
-        end,
-      })
-      vim.lsp.enable('gdscript')
-    end
-
-    vim.lsp.config('ts_ls', {
-      root_dir = function(bufnr, on_dir)
-        local fname = vim.api.nvim_buf_get_name(bufnr)
-        -- Skip deno projects so tsserver doesn't attach there
-        if vim.fs.root(fname, { 'deno.json', 'deno.jsonc' }) then
-          return
-        end
-        local root = vim.fs.root(fname, { 'package.json' })
-        if root then
-          on_dir(root)
-        end
+  -- gdscript LSP needs `netcat` (or `ncat` on Windows) on PATH; connects to running Godot editor
+  local nc = vim.fn.executable('netcat') == 1 and 'netcat' or (vim.fn.executable('ncat') == 1 and 'ncat' or nil)
+  if nc then
+    vim.lsp.config('gdscript', {
+      cmd = { nc, 'localhost', '6005' },
+      filetypes = { 'gd', 'gdscript', 'gdscript3' },
+      root_dir = function(_, on_dir)
+        on_dir(vim.fs.root(0, { 'project.godot', '.git' }) or vim.fn.getcwd())
       end,
-      single_file_support = false,
     })
+    vim.lsp.enable('gdscript')
   end
+
+  vim.lsp.config('ts_ls', {
+    root_dir = function(bufnr, on_dir)
+      local fname = vim.api.nvim_buf_get_name(bufnr)
+      -- Skip deno projects so tsserver doesn't attach there
+      if vim.fs.root(fname, { 'deno.json', 'deno.jsonc' }) then
+        return
+      end
+      local root = vim.fs.root(fname, { 'package.json' })
+      if root then
+        on_dir(root)
+      end
+    end,
+    single_file_support = false,
+  })
 end
 
 -- Godot setup function
@@ -703,21 +688,6 @@ end
 --
 --  You can also configure plugins after the setup call,
 --    as they will be available in your neovim runtime.
--- This nvim build (0.11.0-dev pre-1106) predates the `winborder` option, but
--- nui.nvim's v0_11 branch calls nvim_get_option_value("winborder") unconditionally.
--- Wrap the API so any caller asking for a missing option gets a sane default
--- instead of an error. Only intercepts on failure, so behavior is unchanged
--- on newer builds where the option exists.
-do
-  local orig = vim.api.nvim_get_option_value
-  vim.api.nvim_get_option_value = function(name, opts)
-    local ok, val = pcall(orig, name, opts)
-    if ok then return val end
-    if name == 'winborder' then return 'none' end
-    error(val, 2)
-  end
-end
-
 if lazy_installed then
 require('lazy').setup({
   -- NOTE: First, some plugins that don't require any configuration
@@ -806,7 +776,7 @@ require('lazy').setup({
     version = '1.*',
     dependencies = {
       'L3MON4D3/LuaSnip',
-      { 'giuxtaposition/blink-cmp-copilot', dependencies = { 'zbirenbaum/copilot.lua' } },
+      -- blink-cmp-copilot removed: copilot.lua disabled (see its spec below).
     },
     -- Mirror blink's insert-mode bindings as descriptive no-op stubs so they
     -- show up in :Telescope keymaps. Blink's real handlers run via its own
@@ -841,15 +811,9 @@ require('lazy').setup({
       },
       snippets = { preset = 'luasnip' },
       sources = {
-        default = { 'copilot', 'lsp', 'path', 'snippets', 'buffer' },
-        providers = {
-          copilot = {
-            name = 'copilot',
-            module = 'blink-cmp-copilot',
-            score_offset = 100,
-            async = true,
-          },
-        },
+        -- 'copilot' removed: copilot.lua disabled (see its spec below).
+        default = { 'lsp', 'path', 'snippets', 'buffer' },
+        providers = {},
       },
       completion = {
         documentation = { auto_show = true, auto_show_delay_ms = 200 },
@@ -1115,9 +1079,10 @@ require('lazy').setup({
       { '<C-=>', '<cmd>IncreaseFont<cr>', desc = 'GUI: Increase font size' },
       { '<C-0>', '<cmd>ResetFontSize<cr>', desc = 'GUI: Reset font size' },
     },
-    config = function()
-      vim.cmd 'SetFont CaskaydiaCove NFM:h14'
-    end,
+    -- Base font is set eagerly via vim.o.guifont (see below) so Neovide gets
+    -- it on first resolution. ez-guifont only provides the resize commands
+    -- (<C-=>/<C-->/<C-0>), which read the current &guifont as their base — no
+    -- SetFont needed here (calling it on UIEnter re-triggers the late path).
   },
 
   {
@@ -1278,9 +1243,12 @@ require('lazy').setup({
 
   {
     'zbirenbaum/copilot.lua',
+    -- Disabled: copilot.lua turned off entirely. Re-enable by setting
+    -- enabled = true and restoring 'copilot' in blink's sources.default plus
+    -- the blink-cmp-copilot dependency above.
+    enabled = false,
     cmd = 'Copilot',
     event = 'InsertEnter',
-    -- blink-cmp-copilot drives completion; disable copilot.lua's own ghost-text and panel.
     opts = {
       filetypes = {},
       panel = { enabled = false },
@@ -1334,21 +1302,7 @@ require('lazy').setup({
 
   {
     'nvim-neo-tree/neo-tree.nvim',
-    opts = {
-      filesystem = {
-        commands = {
-          system_open = function(state)
-            vim.ui.open(state.tree:get_node():get_id())
-          end,
-        },
-        window = {
-          mappings = {
-            ['O'] = 'system_open',
-          },
-        },
-      },
-    },
-    cmd = 'Neotree',
+    opts = {},
     dependencies = {
       'nvim-lua/plenary.nvim',
       'nvim-tree/nvim-web-devicons', -- not strictly required, but recommended
@@ -1359,16 +1313,16 @@ require('lazy').setup({
       {
         '<C-n>',
         function()
-          vim.cmd 'Neotree toggle %:p:h'
+          vim.cmd('Neotree toggle reveal dir=' .. vim.fn.fnameescape(vim.fn.getcwd()))
         end,
-        desc = 'Toggle [N]eoTree on current file',
+        desc = 'Toggle [N]eoTree on cwd (reveal current file)',
       },
       {
         '<C-N>',
         function()
-          vim.cmd 'Neotree toggle'
+          vim.cmd 'Neotree toggle %:p:h'
         end,
-        desc = 'Toggle [N]eoTree on curdir',
+        desc = 'Toggle [N]eoTree on current file dir',
       },
       {
         '<leader>nb',
@@ -1387,21 +1341,17 @@ require('lazy').setup({
     },
   },
   {
-    'iamcco/markdown-preview.nvim',
-    cmd = { 'MarkdownPreviewToggle', 'MarkdownPreview', 'MarkdownPreviewStop' },
-    ft = { 'markdown' },
-    build = 'cd app && npm install',
-    keys = {
-      { '<leader>md', '<cmd>MarkdownPreviewToggle<cr>', desc = '[M]ark[d]own preview in browser' },
-    },
-  },
-  {
     'ziontee113/icon-picker.nvim',
     opts = { disable_legacy_commands = true },
     keys = {
-      { '<Leader>ii', '<cmd>IconPickerNormal<cr>', mode = 'n', desc = 'Open [I]con Picker', silent = true },
-      { '<Leader>iy', '<cmd>IconPickerYank<cr>', mode = 'n', desc = '[Y]ank from Icon Picker', silent = true }, --> Yank the selected icon into register
-      { '<C-i>', '<cmd>IconPickerInsert<cr>', mode = 'i', desc = 'Open [I]con Picker', silent = true },
+      { '<Leader><Leader>i', '<cmd>IconPickerNormal<cr>', mode = 'n', desc = 'Open [I]con Picker', silent = true },
+      { '<Leader><Leader>y', '<cmd>IconPickerYank<cr>', mode = 'n', desc = '[Y]ank from Icon Picker', silent = true }, --> Yank the selected icon into register
+      -- NOTE: do NOT bind <C-i> in insert mode: terminals encode Tab as <C-i>
+      -- (same byte), so this stole every insert-mode Tab press and looped in
+      -- lazy.nvim's load-stub (del_keymap -> re-feed <C-i> -> stub again),
+      -- freezing nvim at 100% CPU inside vgetorpeek. Use a leader-style
+      -- insert binding instead if needed.
+      { '<M-i>', '<cmd>IconPickerInsert<cr>', mode = 'i', desc = 'Open [I]con Picker', silent = true },
     },
   },
   {
@@ -1653,117 +1603,38 @@ require('lazy').setup({
     },
   },
   {
-    'vhyrro/luarocks.nvim',
-    lazy = true, -- loaded only when neorg pulls it in
-    config = true,
+    'obsidian-nvim/obsidian.nvim',
+    version = '*',
+    ft = 'markdown',
+    cmd = 'Obsidian',
+    dependencies = { 'nvim-telescope/telescope.nvim' },
+    keys = {
+      { '<leader>N', '<cmd>Obsidian today<cr>', desc = '[N]otes: journal today' },
+      { '<leader>nt', '<cmd>Obsidian toc<cr>', desc = '[N]otes [T]able of contents' },
+      { '<leader>of', '<cmd>Obsidian quick_switch<cr>', desc = '[O]bsidian [F]ind note' },
+      { '<leader>og', '<cmd>Obsidian search<cr>', desc = '[O]bsidian [G]rep notes' },
+      { '<leader>ob', '<cmd>Obsidian backlinks<cr>', desc = '[O]bsidian [B]acklinks' },
+    },
+    opts = {
+      legacy_commands = false,
+      workspaces = { { name = 'notes', path = '~/notes' } },
+      daily_notes = {
+        folder = 'journal',
+        date_format = '%Y/%m/%d', -- journal/2026/07/17.md, matches old neorg layout
+        default_tags = {},
+        workdays_only = false,
+      },
+      picker = { name = 'telescope.nvim' },
+      frontmatter = { enabled = false }, -- don't rewrite migrated notes on save
+      ui = { enable = false }, -- render-markdown.nvim owns in-buffer rendering
+    },
   },
 
-  -- Override neorg's transitive deps to make them lazy too (they default to
-  -- eager when lazy.nvim auto-registers them from neorg's package metadata).
-  { 'pysan3/pathlib.nvim', lazy = true },
-  { 'nvim-neorg/lua-utils.nvim', lazy = true },
-  { 'nvim-neorg/tree-sitter-norg', lazy = true },
-  { 'nvim-neorg/tree-sitter-norg-meta', lazy = true },
-
   {
-    'nvim-neorg/neorg',
-    ft = 'norg',
-    dependencies = { 'vhyrro/luarocks.nvim' },
-    cmd = { 'Neorg', 'NeorgOpen', 'NeorgNew' },
-    keys = {
-      {
-        '<leader>N',
-        '<cmd>Neorg journal today<cr>',
-        desc = '[N]otes',
-      },
-      {
-        '<leader>nt',
-        '<cmd>Neorg toc<cr>',
-        desc = '[N]eorg [T]able of Contents',
-      },
-      { '<leader>nj', '<cmd>Neorg journal today<cr>', desc = '[N]eorg [J]ournal today' },
-      { '<leader>ny', '<cmd>Neorg journal yesterday<cr>', desc = '[N]eorg journal [Y]esterday' },
-      { '<leader>nT', '<cmd>Neorg journal tomorrow<cr>', desc = '[N]eorg journal [T]omorrow' },
-      {
-        '<leader>nf',
-        function()
-          require('telescope.builtin').find_files {
-            prompt_title = 'Journal entries',
-            cwd = vim.fn.expand('~/notes/journal'),
-          }
-        end,
-        desc = '[N]eorg [F]ind journal entry',
-      },
-      {
-        '<leader>n/',
-        function()
-          require('telescope.builtin').live_grep {
-            prompt_title = 'Grep notes',
-            cwd = vim.fn.expand('~/notes'),
-          }
-        end,
-        desc = '[N]eorg grep notes',
-      },
-      {
-        '<leader>ne',
-        function()
-          vim.cmd('Neotree dir=' .. vim.fn.expand('~/notes'))
-        end,
-        desc = '[N]eorg [E]xplore notes tree',
-      },
-    },
-    config = function()
-      require('neorg').setup {
-        load = {
-          ['core.defaults'] = {}, -- Loads default behaviour
-          ['core.concealer'] = {}, -- Adds pretty icons to your documents
-          ['core.dirman'] = { -- Manages Neorg workspaces
-            config = {
-              workspaces = {
-                notes = '~/notes',
-              },
-              default_workspace = 'notes',
-            },
-          },
-          -- ["core.keybinds"] = {
-          --   config = {
-          --     default_keybinds = false,
-          --   }
-          -- }
-        },
-      }
-
-      -- in neorg files, map c-shift-n
-      vim.wo.foldlevel = 99
-      vim.wo.conceallevel = 2
-
-      -- Jump to prev/next day's journal based on the date encoded in the
-      -- current file path (~/notes/journal/YYYY/MM/DD.norg). Falls back to
-      -- today if the buffer isn't a dated journal entry.
-      local function jump_days(delta)
-        local path = vim.fn.expand('%:p'):gsub('\\', '/')
-        local y, m, d = path:match('journal/(%d%d%d%d)/(%d%d)/(%d%d)%.norg$')
-        local base
-        if y then
-          base = os.time { year = tonumber(y), month = tonumber(m), day = tonumber(d), hour = 12 }
-        else
-          base = os.time()
-        end
-        local ds = os.date('%Y-%m-%d', base + delta * 86400)
-        vim.cmd('Neorg journal custom ' .. ds)
-      end
-
-      vim.api.nvim_create_autocmd('FileType', {
-        pattern = 'norg',
-        callback = function(ev)
-          local opts = { buffer = ev.buf, silent = true }
-          vim.keymap.set('n', ']d', function() jump_days(1) end,
-            vim.tbl_extend('force', opts, { desc = 'Next day journal' }))
-          vim.keymap.set('n', '[d', function() jump_days(-1) end,
-            vim.tbl_extend('force', opts, { desc = 'Previous day journal' }))
-        end,
-      })
-    end,
+    'MeanderingProgrammer/render-markdown.nvim',
+    ft = 'markdown',
+    dependencies = { 'nvim-treesitter/nvim-treesitter', 'nvim-tree/nvim-web-devicons' },
+    opts = {},
   },
 
   {
@@ -1804,12 +1675,6 @@ require('lazy').setup({
   --    For additional information see: https://github.com/folke/lazy.nvim#-structuring-your-plugins
   -- { import = 'custom.plugins' },
 }, {
-  rocks = {
-    -- Use hererocks so lazy.nvim manages its own luarocks for plugins like
-    -- vhyrro/luarocks.nvim (neorg). Avoids needing a system-wide luarocks
-    -- on PATH, which is fragile on Windows.
-    hererocks = true,
-  },
   performance = {
     rtp = {
       -- Disable Neovim's bundled vim-era plugins we don't use; saves startup time.
@@ -1869,15 +1734,32 @@ vim.o.timeoutlen = 300
 -- disabled because it messes up plugins, like git write, neotree, and git worktrees
 vim.o.autochdir = false
 
+-- Instead of autochdir, cd once to the PROJECT ROOT (git root, else file dir)
+-- when entering a real file buffer. Keeps :pwd / getcwd() / neo-tree anchored to
+-- the project you're editing instead of nvim's launch dir (often ~).
+vim.api.nvim_create_autocmd({ 'BufEnter' }, {
+  group = vim.api.nvim_create_augroup('cd-to-project-root', { clear = true }),
+  callback = function(args)
+    -- only real, on-disk files (skip neo-tree, terminals, help, no-name)
+    if vim.bo[args.buf].buftype ~= '' then return end
+    local file = vim.api.nvim_buf_get_name(args.buf)
+    if file == '' or vim.fn.filereadable(file) == 0 then return end
+    local dir = vim.fs.dirname(file)
+    local root = vim.fs.root(args.buf, { '.git' }) or dir
+    if root ~= vim.fn.getcwd() then
+      vim.cmd.cd(vim.fn.fnameescape(root))
+    end
+  end,
+})
+
 -- Set completeopt to have a better completion experience
 vim.o.completeopt = 'menuone,noselect'
 
 -- NOTE: You should make sure your terminal supports this
 vim.o.termguicolors = true
 
--- Set early so GUIs (Neovide/nvim-qt) don't fall back to "monospace" at startup.
--- ez-guifont overrides this later via its SetFont command on UIEnter.
-vim.o.guifont = 'CaskaydiaCove\\ NFM,Segoe\\ UI\\ Emoji:h14'
+-- guifont is set at the very top of this file (before lazy/UIEnter) so Neovide
+-- gets the real font on its first read — see the comment there.
 
 vim.o.scrolloff = 8
 
@@ -1897,28 +1779,6 @@ vim.keymap.set('n', ']n', function() vim.diagnostic.jump { count = 1 } end, { de
 vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Open floating diagnostic message' })
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostics list' })
 vim.keymap.set('n', '<leader>L', '<cmd>Lazy<cr>', { desc = 'Open [L]azy plugin manager' })
-
--- :messages helpers
-vim.keymap.set('n', '<leader>ym', function()
-  local msgs = vim.api.nvim_exec2('messages', { output = true }).output
-  vim.fn.setreg('+', msgs)
-  vim.fn.setreg('"', msgs)
-  vim.notify('Yanked :messages (' .. select(2, msgs:gsub('\n', '\n')) + 1 .. ' lines)')
-end, { desc = '[Y]ank [M]essages to clipboard' })
-
-vim.keymap.set('n', '<leader>om', function()
-  local msgs = vim.api.nvim_exec2('messages', { output = true }).output
-  vim.cmd('new')
-  vim.bo.buftype = 'nofile'
-  vim.bo.bufhidden = 'wipe'
-  vim.bo.swapfile = false
-  vim.api.nvim_buf_set_name(0, '[Messages]')
-  vim.api.nvim_buf_set_lines(0, 0, -1, false, vim.split(msgs, '\n', { plain = true }))
-end, { desc = '[O]pen [M]essages in buffer' })
-
-vim.keymap.set('n', '<leader>ob', function()
-  vim.ui.open(vim.fn.expand('%:p'))
-end, { desc = '[O]pen file in [B]rowser' })
 
 -- Comment with Ctrl-/
 vim.keymap.set('n', '<C-/>', '<Plug>(comment_toggle_linewise_current)', { desc = '[Ctrl-/] Comment toggle linewise' })
@@ -1958,13 +1818,6 @@ vim.api.nvim_create_autocmd({ 'BufEnter' }, {
   callback = function()
     vim.bo.tabstop = 4
     vim.bo.shiftwidth = 4
-  end,
-})
-
-vim.api.nvim_create_autocmd({ 'BufEnter' }, {
-  pattern = { '*.norg' },
-  callback = function()
-    vim.o.number = false
   end,
 })
 
