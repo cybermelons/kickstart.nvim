@@ -1302,7 +1302,16 @@ require('lazy').setup({
 
   {
     'nvim-neo-tree/neo-tree.nvim',
-    opts = {},
+    opts = {
+      -- ~/botan, ~/botan-ws and ~/notes are network mounts (NFSv4 over Tailscale),
+      -- so a whole-worktree `git status` still walks every dir over the wire.
+      -- Keep it scoped to the browsed directory. File watchers are back on: NFS
+      -- attribute caching makes them far cheaper than they were over sshfs.
+      git_status_scope_to_path = true,
+      filesystem = {
+        use_libuv_file_watcher = true,
+      },
+    },
     dependencies = {
       'nvim-lua/plenary.nvim',
       'nvim-tree/nvim-web-devicons', -- not strictly required, but recommended
@@ -1625,7 +1634,11 @@ require('lazy').setup({
         workdays_only = false,
       },
       picker = { name = 'telescope.nvim' },
-      frontmatter = { enabled = false }, -- don't rewrite migrated notes on save
+      -- obsidian.nvim loads for every markdown buffer (ft = 'markdown'), not just
+      -- files in the vault, and its BufWritePre hook rewrites frontmatter mid-save.
+      -- Kept off so it doesn't rewrite the migrated notes on every save.
+      -- (Replaces the deprecated `disable_frontmatter`, gone in obsidian.nvim 4.)
+      frontmatter = { enabled = false },
       ui = { enable = false }, -- render-markdown.nvim owns in-buffer rendering
     },
   },
@@ -1715,6 +1728,14 @@ vim.o.clipboard = 'unnamedplus'
 -- Enable break indent
 vim.o.breakindent = true
 vim.o.autoindent = true
+
+
+-- backupcopy was forced to 'yes' when ~/botan and ~/notes were sshfs mounts:
+-- sshfs minted a new inode per rewrite, so even a no-op `:w` tripped nvim's
+-- "file has been changed since reading it" check. Those mounts are NFSv4 now,
+-- where the inode survives both in-place rewrite and atomic rename, so the
+-- default (write-temp-then-rename) is safe again. Verified 2026-08-25.
+vim.o.backupcopy = 'auto'
 
 -- Save undo history
 vim.o.undofile = true
@@ -1886,3 +1907,117 @@ vim.api.nvim_create_autocmd("BufEnter", {
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
+
+
+-- ============================================================
+-- bam receive handler: shows content sent from botan's `bam` script in a
+-- reused scratch buffer, jumps to an anchor line, and does not steal focus
+-- if the user is typing.
+-- ============================================================
+_G.bam_pending = _G.bam_pending or {}
+
+function _G.bam_receive(lines, label, anchor)
+  local bufname = "[bam] " .. label
+  local buf = nil
+  for _, b in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_get_name(b):match("%[bam%] " .. vim.pesc(label) .. "$") then
+      buf = b
+      break
+    end
+  end
+  if not buf then
+    buf = vim.api.nvim_create_buf(true, true)
+    vim.api.nvim_buf_set_name(buf, bufname)
+    vim.bo[buf].buftype = "nofile"
+    vim.bo[buf].filetype = "markdown"
+  end
+  vim.bo[buf].modifiable = true
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+
+  local target = 1
+  if anchor ~= nil and anchor ~= "" then
+    local needle = anchor:lower()
+    for i, line in ipairs(lines) do
+      if line:lower():find(needle, 1, true) then
+        target = i
+        break
+      end
+    end
+  end
+
+  local mode = vim.api.nvim_get_mode().mode
+  if mode == "n" then
+    vim.api.nvim_win_set_buf(0, buf)
+    vim.api.nvim_win_set_cursor(0, { target, 0 })
+    vim.cmd("normal! zz")
+  else
+    vim.fn.bufload(buf)
+    table.insert(_G.bam_pending, { buf = buf, label = label, line = target })
+    if mode == "i" or mode == "v" or mode == "V" or mode == "\22" then
+      vim.notify("[bam] " .. label .. " ready")
+    end
+  end
+  return "OK"
+end
+
+if not _G.bam_hooks_installed then
+  _G.bam_hooks_installed = true
+
+  local function bam_flush_notice()
+    if #_G.bam_pending == 0 then
+      return
+    end
+    local labels = {}
+    for _, p in ipairs(_G.bam_pending) do
+      table.insert(labels, p.label)
+    end
+    vim.notify("[bam] " .. #_G.bam_pending .. " pending: " .. table.concat(labels, ", "))
+  end
+
+  local grp = vim.api.nvim_create_augroup("BamReceive", { clear = true })
+  vim.api.nvim_create_autocmd("InsertLeave", {
+    group = grp,
+    callback = bam_flush_notice,
+  })
+  vim.api.nvim_create_autocmd("CmdlineLeave", {
+    group = grp,
+    callback = bam_flush_notice,
+  })
+  vim.api.nvim_create_autocmd("BufEnter", {
+    group = grp,
+    callback = function(args)
+      for i, p in ipairs(_G.bam_pending) do
+        if p.buf == args.buf then
+          vim.api.nvim_win_set_cursor(0, { p.line, 0 })
+          vim.cmd("normal! zz")
+          table.remove(_G.bam_pending, i)
+          break
+        end
+      end
+    end,
+  })
+end
+
+
+-- [[ zjstatus hot-reload ]]
+-- zjstatus config is load-time plugin params baked into the zellij SESSION, so
+-- editing the layout has no effect until it's pushed in — not even in a new tab.
+-- Push on write; the script is a no-op outside a zellij session.
+vim.api.nvim_create_autocmd('BufWritePost', {
+  group = vim.api.nvim_create_augroup('ZjstatusReload', { clear = true }),
+  pattern = vim.fn.expand('~') .. '/dotfiles/stow/zellij/.config/zellij/layouts/*.kdl',
+  callback = function()
+    if vim.env.ZELLIJ == nil then
+      return
+    end
+    vim.system({ vim.fn.expand('~') .. '/.config/zellij/zjstatus-reload.sh' }, { text = true }, function(r)
+      vim.schedule(function()
+        if r.code == 0 then
+          vim.notify('zjstatus: bar reloaded', vim.log.levels.INFO)
+        else
+          vim.notify('zjstatus reload failed: ' .. (r.stderr or ''), vim.log.levels.WARN)
+        end
+      end)
+    end)
+  end,
+})

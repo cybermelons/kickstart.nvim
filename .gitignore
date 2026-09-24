@@ -2,3 +2,7 @@ tags
 test.sh
 .luarc.json
 nvim
+
+# local backups
+*.bak-*
+*.pre-revert
