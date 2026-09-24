@@ -23,6 +23,9 @@
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
+-- Load per-project .nvim.lua (asks to :trust once per file)
+vim.o.exrc = true
+
 -- Set the GUI font at the VERY TOP of init, before lazy/plugins/UIEnter, so
 -- Neovide reads the real font on its first `guifont` read. Otherwise Neovide
 -- attaches with nvim's default guifont ('SF Mono,...,monospace'), tries to load
@@ -714,6 +717,8 @@ require('lazy').setup({
       {
         'j-hui/fidget.nvim',
         opts = {
+          -- pylsp reports a progress message per lint plugin ("Completed lint: mccabe") on every save
+          progress = { ignore = { 'pylsp' } },
           -- top right
           notification = {
             window = {
@@ -1724,6 +1729,25 @@ vim.o.mouse = 'a'
 --  Remove this option if you want your OS clipboard to remain independent.
 --  See `:help 'clipboard'`
 vim.o.clipboard = 'unnamedplus'
+
+-- Over SSH, force the OSC 52 clipboard provider. botan is reached over SSH from
+-- watame; a local tool (xclip/wl-copy) would copy to botan's own clipboard
+-- instead of sending the text back to the terminal in front of the user.
+if vim.env.SSH_TTY then
+  local osc52 = require('vim.ui.clipboard.osc52')
+  vim.g.clipboard = {
+    name = 'OSC 52',
+    copy = { ['+'] = osc52.copy('+'), ['*'] = osc52.copy('*') },
+    -- No OSC 52 paste on purpose. Windows Terminal does not answer an OSC 52
+    -- read request, so a paste handler makes every p (and every yank) block
+    -- until it times out. Paste comes from Neovim's own register instead; to
+    -- paste text from the Windows side, use the terminal's paste key.
+    paste = {
+      ['+'] = function() return vim.split(vim.fn.getreg('"'), '\n') end,
+      ['*'] = function() return vim.split(vim.fn.getreg('"'), '\n') end,
+    },
+  }
+end
 
 -- Enable break indent
 vim.o.breakindent = true
