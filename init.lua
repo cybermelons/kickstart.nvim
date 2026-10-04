@@ -1611,6 +1611,8 @@ require('lazy').setup({
       'gcc',
       'gbc',
       { '<C-/>', mode = { 'n', 'v', 'x' } },
+      { '<leader>cc', '<Plug>(comment_toggle_linewise_current)', desc = '[C]omment toggle line' },
+      { '<leader>cc', '<Plug>(comment_toggle_linewise_visual)', mode = 'x', desc = '[C]omment toggle selection' },
     },
     opts = {
       -- add any options here
