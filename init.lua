@@ -1621,6 +1621,8 @@ require('lazy').setup({
   {
     'obsidian-nvim/obsidian.nvim',
     version = '*',
+    -- Vault only exists on some hosts; setup() errors on every markdown buffer without it.
+    cond = vim.fn.isdirectory(vim.fn.expand '~/notes') == 1,
     ft = 'markdown',
     cmd = 'Obsidian',
     dependencies = { 'nvim-telescope/telescope.nvim' },
